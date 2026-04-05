@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Claude Code Rewind fork wrapper.
+# Runs the patched CLI via the bootstrap loader.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# If patched CLI doesn't exist, build it
+if [ ! -f "$SCRIPT_DIR/claude-rewind.js" ]; then
+  echo "[rewind-fork] Patched CLI not found. Running patcher..." >&2
+  node "$REPO_ROOT/src/patch.mjs" || exit 1
+fi
+
+# Copy vendor binaries to where the CLI expects them
+export CLAUDE_CODE_VENDOR_DIR="${SCRIPT_DIR}/vendor"
+if [ ! -d "$SCRIPT_DIR/vendor" ] && [ -d "$REPO_ROOT/vendor/bin-vendor" ]; then
+  ln -sf "$REPO_ROOT/vendor/bin-vendor" "$SCRIPT_DIR/vendor"
+fi
+
+# Set default mode if not set
+export CLAUDE_REWIND_MODE="${CLAUDE_REWIND_MODE:-full}"
+
+exec node "$REPO_ROOT/src/bootstrap.mjs" "$@"

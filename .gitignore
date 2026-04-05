@@ -1,0 +1,16 @@
+.DS_Store
+node_modules/
+
+# Generated patched CLI (rebuild with: node src/patch.mjs)
+bin/claude-rewind.js
+bin/vendor
+
+# Vendor: users must supply their own cli.js from npm
+vendor/cli-original.js
+vendor/bin-vendor/
+vendor/package-original.json
+vendor/sdk-tools.d.ts
+
+# Telemetry logs
+logs/
+
