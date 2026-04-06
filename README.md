@@ -1,154 +1,137 @@
-# Claude Code: Context Rewind & Auto-Compact
+# Context Management for AI Coding Agents
 
-A patching system for [Claude Code](https://github.com/anthropics/claude-code) that adds two context management mechanisms:
+Research into reducing context window waste and detecting circular reasoning in AI coding agents, tested on Claude Code with a real GCC compiler bug.
 
-1. **Auto-compact** (invisible) — Bash tool outputs are ephemeral by default: automatically compacted after the model processes them, freeing context window space. The model can preserve specific outputs by setting `ephemeral: false`.
-2. **Rewind** (model-initiated tool) — lets the model abandon a failed approach, prune the conversation history, and inject a summary of what was tried.
+## The Problem
 
-Everything runs on the existing Max subscription. No API costs.
+AI coding agents accumulate all tool output in their context window forever. After 30 minutes of debugging, half the context is stale test output, old tree dumps, and failed approach artifacts. The model has no mechanism to:
+1. Discard tool outputs it has already processed
+2. Recognize when it's going in circles
+3. Backtrack from a failed approach
 
-## How it works
+## Two Approaches Explored
 
-Claude Code ships as a minified JS binary. This project applies **text patches** to that binary, inserting new code at specific anchor points. The patcher finds unique strings in the minified source and splices in the modifications.
+### 1. Patching Claude Code (`claude-code-rewind/`)
 
-### Patches applied (6 total)
+Direct patches to Claude Code's minified JS binary. Adds auto-compact (truncate old Bash outputs) and a Rewind tool. **Abandoned** — fragile, breaks on updates, and the model doesn't use novel tools it wasn't trained on.
 
-1. **Ephemeral parameter** — adds `ephemeral` (default: true) to Bash tool's input schema
-2. **Preservation tracking** — tracks Bash calls where the model explicitly sets `ephemeral: false`
-3. **Auto-compact** — after each turn, compacts Bash outputs the model has already processed (unless preserved)
-4. **Rewind tool** — registers a `Rewind(turns_back, summary)` tool alongside Read/Write/Edit/etc.
-5. **Rewind handler** — in the main loop, detects pending Rewind requests and truncates the message array
-6. **System prompt** — tells the model about ephemeral defaults and the Rewind tool
+See [REWIND_CHANGES.md](claude-code-rewind/REWIND_CHANGES.md) for the full patching approach documentation.
 
-## Setup
+### 2. HTTP Proxy (`stuck-detector-proxy/`) ← Current approach
 
-```bash
-git clone https://github.com/nicolasb565/claude_rewind_and_prune.git
-cd claude_rewind_and_prune/claude-code-rewind
+A local proxy between Claude Code and the Anthropic API. Intercepts requests to compact tool outputs and detect stuck reasoning. **No patches, no plugins, works with vanilla Claude Code.**
 
-# Supply the Claude Code CLI (not redistributable)
-mkdir -p vendor
-npm pack @anthropic-ai/claude-code
-tar xzf anthropic-ai-claude-code-*.tgz
-mv package/cli.js vendor/cli-original.js
-mv package/vendor vendor/bin-vendor
-rm -rf package anthropic-ai-claude-code-*.tgz
-
-# Build the patched CLI
-node src/patch.mjs
-
-# Run it
-./bin/claude "your prompt here"
+```
+Claude Code (unmodified)
+    │
+    │  ANTHROPIC_BASE_URL=http://localhost:8080
+    │
+    ▼
+Proxy (localhost:8080)
+    ├── Compact old Bash tool results in message array
+    ├── Detect circular thinking patterns (heuristic)
+    ├── Inject corrective nudge when stuck detected
+    └── Forward to api.anthropic.com with auth headers
 ```
 
-## Configuration
+#### Usage
 
-| Environment variable | Default | Description |
+```bash
+cd stuck-detector-proxy
+node proxy.mjs &
+
+# Run vanilla Claude Code through the proxy
+ANTHROPIC_BASE_URL=http://localhost:8080 claude "your prompt"
+
+# A/B testing is trivial — without proxy:
+claude "your prompt"
+```
+
+#### Configuration
+
+| Variable | Default | Description |
 |---|---|---|
-| `CLAUDE_REWIND_MODE` | `full` | `off` / `compact_only` / `full` |
-| `REWIND_KEEP_FIRST` | `30` | Lines to keep from start of compacted output |
-| `REWIND_KEEP_LAST` | `10` | Lines to keep from end of compacted output |
-| `REWIND_MIN_LINES` | `50` | Minimum output length to trigger compaction |
+| `PROXY_PORT` | `8080` | Listen port |
+| `PROXY_UPSTREAM` | `https://api.anthropic.com` | Upstream API |
+| `COMPACT_ENABLED` | `1` | Auto-compact Bash outputs |
+| `COMPACT_STALE_TURNS` | `2` | Turns before compaction |
+| `COMPACT_KEEP_FIRST` | `30` | Lines kept from start |
+| `COMPACT_KEEP_LAST` | `10` | Lines kept from end |
+| `COMPACT_MIN_LINES` | `50` | Minimum lines to trigger |
+| `STUCK_ENABLED` | `1` | Stuck detection |
+| `STUCK_COOLDOWN` | `5` | Turns between nudges |
 
-### Three conditions (for benchmarking)
+## Benchmark: GCC Compiler Bug (PR 123310)
 
-```bash
-# Stock Claude Code (no patches active)
-CLAUDE_REWIND_MODE=off ./bin/claude
+Tested on [GCC PR 123310](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=123310) — a wrong-code bug in the value numbering pass (`tree-ssa-sccvn.cc`). The fix is a 1-character change: `-1U` → `-1` in an offset comparison. The unsigned `-1U` (0x00000000FFFFFFFF) doesn't match the signed sentinel `-1` (0xFFFFFFFFFFFFFFFF), causing incorrect aggregate copy translation at `-O2`.
 
-# Auto-compact only (no Rewind tool)
-CLAUDE_REWIND_MODE=compact_only ./bin/claude
+- **Reproducer**: A struct copy in a loop produces wrong value (0 instead of 5)
+- **Root cause**: `known_ne(lhs_ops[j].off, -1U)` should be `known_ne(lhs_ops[j].off, -1)`
+- **Affected versions**: GCC 12-15 (regression from [r12-2657](https://gcc.gnu.org/git/?p=gcc.git;a=commit;h=f9fcf754825a1e))
+- **Fix commit**: [r16-6577](https://gcc.gnu.org/git/?p=gcc.git;a=commit;h=6225251b9005) by Richard Biener
 
-# Auto-compact + Rewind tool
-CLAUDE_REWIND_MODE=full ./bin/claude
-```
+Each trial involves reading thousands of lines of compiler source, running tree dumps, adding debug prints, rebuilding GCC, and iterating. 50-200 tool calls per run.
 
-## How auto-compact works
+### Results
 
-Bash output is **ephemeral by default**. After the model processes a Bash result (1+ assistant turns later), the orchestrator truncates it to first 30 + last 10 lines.
-
-The model can override this per-call:
-```
-Bash({ command: "npm test", ephemeral: false })
-```
-
-Other tools (Read, Edit, Write, Grep, Glob) are never compacted — the model refers back to these while making iterative edits.
-
-## How Rewind works
-
-The model calls `Rewind(turns_back=N, summary="...")` when stuck:
-1. Validates: summary >= 100 chars, turns_back >= 1, max 5 rewinds/session
-2. Truncates conversation history at the Nth assistant message from the end
-3. Injects a user message with the summary
-4. Next turn continues with the pruned history
-
-Rewind does **not** undo file changes — the summary should mention what was modified.
-
-## Benchmark findings
-
-Tested on a rate limiter debugging task (3 bugs, 14 tests) and an async refactoring task (13 tests).
-
-### Evolution of auto-compact
+#### Patching approach (v1-v5)
 
 | Version | Approach | Result |
 |---|---|---|
-| v1: truncate everything | All tool outputs after 2 turns | **Caused 8 re-reads**, 86% slower |
+| v1: truncate all | All tool outputs after 2 turns | **Caused 8 re-reads**, 86% slower |
 | v2: Bash-only | Only truncate Bash, never Read/Edit | 0 re-reads, modest savings |
-| v4: ephemeral default-true | Bash ephemeral by default, model can preserve | 0 re-reads, clean savings |
+| v4: ephemeral default-true | Bash ephemeral by default | Clean savings, model never uses opt-out |
+| v5: +CLAUDE.md | Added explicit instructions | Model ignores — behavior unchanged |
 
-Key insight: **truncating Read/Edit outputs causes the model to re-read files**, wasting more tokens than it saves. Only Bash outputs (test runs, builds, installs) are truly consume-once.
+#### GCC bug trials (patching approach)
 
-### GCC compiler bug (PR 123310)
-
-The real stress test: a 1-character bug in GCC's value numbering pass (`-1U` vs `-1` in `tree-ssa-sccvn.cc`). Each run involves reading thousands of lines of compiler source, running tree dumps, adding debug prints, rebuilding GCC, and iterating. 54-197 tool calls per run.
-
-| Trial | Stock | Full (v4) | Winner |
+| Trial | Stock | Patched | Winner |
 |---|---|---|---|
-| T2 (parallel) | 1537s, 156 tools, 17.5M tokens | 1169s, 111 tools, 14.3M tokens | **Full by 24%** |
-| T3 (parallel) | 867s, 54 tools, 5.7M tokens | 1731s, 142 tools, 21.5M tokens | Stock |
-| v5 (+CLAUDE.md) | — | 1303s, 142 tools, 21.5M tokens | Same as T3 |
+| T2 (parallel) | 1537s, 17.5M tokens | 1169s, 14.3M tokens | **Patched by 24%** |
+| T3 (parallel) | 867s, 5.7M tokens | 1731s, 21.5M tokens | Stock |
 
-**Result: variance dominates signal.** Stock ranged 867-1537s, Full ranged 1169-1731s. The reasoning path (determined by non-deterministic token sampling) matters more than context management at this scale.
+#### Proxy approach
 
-Auto-compact fires correctly (8-21 compaction events, 5-10K tokens saved per run). On trial 2, full mode used 18% fewer input tokens and 22% fewer output tokens. But trial 3 went the other way.
+| Run | Duration | Compactions | Stuck nudges | Correct fix? |
+|---|---|---|---|---|
+| Proxy (fixed) | 1636s | 7 | 6 (turns 72, 86, 117) | ✓ |
 
-### Model doesn't use the tools
+The stuck detector fired 3 times:
+- **Turn 72**: Model stuck in `varpool.cc` (irrelevant file) — nudge injected
+- **Turn 86**: Model stuck in `tree-ssa-alias.cc` (wrong subsystem) — nudge injected
+- **Turn 117**: Model iterating in `tree-ssa-sccvn.cc` (right file) — nudge injected
 
-Across all trials:
-- **Rewind: 0 calls.** The model never recognizes when it's going in circles.
-- **ephemeral: false: 0 calls.** The model never explicitly preserves Bash output.
-- **CLAUDE.md instructions: ignored.** v5 added detailed instructions in CLAUDE.md with examples of when to use Rewind and ephemeral. The model read them but behavior was identical to runs without CLAUDE.md (same tool counts, same token usage).
+Model eventually found the correct `-1U` → `-1` fix.
 
-The model's agent-mode behavior (tool selection, investigation strategy) is entirely learned from training. System prompts, tool descriptions, and CLAUDE.md instructions do not change these habits. **New tool behaviors require fine-tuning, not prompting.**
+## Key Findings
 
-### The real opportunity
+1. **Only compact Bash outputs.** Truncating Read/Edit/Write outputs causes the model to re-read files, costing more than it saves.
 
-These tools would have dramatically more impact on **smaller models** (7-35B) that have:
-- Smaller context windows where bloat hits harder
-- Weaker attention over long contexts where pruning removes distractors
-- More frequent wrong turns where Rewind would actually trigger
+2. **Models don't use novel tools without training.** `ephemeral` parameter, `Rewind` tool, CLAUDE.md instructions — the model ignores all of them. Agent-mode behavior is trained, not prompted.
 
-Fine-tuning via LoRA on an open source model (e.g., Qwen 3.5 Coder 35B) with synthetic context management examples is the natural next step. Training data can be generated from Opus transcripts by retroactively labeling ephemeral outputs and backtracking sequences.
+3. **Stuck heuristic works.** Substring repetition + keyword counting correctly detects circular reasoning. Fired at turns 30/75 (patching trials) and turns 72/86/117 (proxy trial).
 
-Related prior work: [MemGPT](https://arxiv.org/abs/2310.08560) (virtual memory for LLMs), [LATS](https://arxiv.org/abs/2310.04406) (tree search with backtracking), [Reflexion](https://arxiv.org/abs/2303.11366) (self-reflection). None combine model-driven context management + coding agent + fine-tuning.
+4. **Proxy > patches > plugins.** Proxy gives full message control, survives updates, works with vanilla Claude Code, enables trivial A/B testing.
 
-## Telemetry
+5. **Variance dominates.** Same task, same model: 219s to 1731s range across trials. Non-deterministic token sampling determines the reasoning path.
 
-Events logged to `~/.claude-rewind-logs/events-YYYY-MM-DD.jsonl`:
-- `session_start/end` — config, duration
-- `compact` — tool name, lines saved, tokens saved estimate
-- `rewind` / `rewind_applied` — turns pruned, summary length
+6. **Smaller models would benefit more.** Opus solves the GCC bug every time (just at varying speed). A 7-35B model with limited context would benefit dramatically from auto-compact and stuck detection.
 
-## Updating
+## Related Work
 
-When Claude Code releases a new version:
-```bash
-npm pack @anthropic-ai/claude-code
-# extract new cli.js to vendor/cli-original.js
-node src/patch.mjs --check  # verify anchors still exist
-node src/patch.mjs           # rebuild
-```
+- [MemGPT](https://arxiv.org/abs/2310.08560) — Virtual memory paging for LLMs
+- [LATS](https://arxiv.org/abs/2310.04406) — Tree search with backtracking for agents
+- [Reflexion](https://arxiv.org/abs/2303.11366) — Self-reflection for LLM agents
+- [Meta-Harness](https://arxiv.org/abs/2603.28052) — End-to-end harness optimization (raw traces beat summaries)
+- [context-mode](https://github.com/mksglu/context-mode) — MCP-based context savings plugin for Claude Code
+
+## Next Steps
+
+See [stuck-detector-prompt.md](stuck-detector-prompt.md) for the full plan:
+1. Train a stuck classifier on real reasoning traces (replace heuristic)
+2. LoRA fine-tune an open source model (Qwen 3.5 Coder) on context management behaviors
+3. Benchmark on SWE-bench with the proxy
 
 ## License
 
-MIT for all code in this repo. Claude Code itself is under Anthropic's license — you must supply your own copy.
+MIT for all code in this repo. Claude Code is under Anthropic's license — the proxy does not modify or redistribute it.
