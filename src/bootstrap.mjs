@@ -29,6 +29,13 @@ globalThis.__REWIND_COMPACT_CFG__ = {
   neverTruncateTools: (process.env.REWIND_NEVER_TRUNCATE || "Read,Edit,Write,Grep,Glob,NotebookEdit").split(","),
 };
 
+// ── Haiku Thinking Monitor ───────────────────────────────────
+// HAIKU_MONITOR=1 enables the thinking stream monitor.
+// When the heuristic flags suspicious thinking, Haiku checks if
+// the model is going in circles and compacts if so.
+globalThis.__HAIKU_MONITOR__ = process.env.HAIKU_MONITOR === "1" || mode === "full";
+globalThis.__HAIKU_MONITOR_PRUNE__ = parseInt(process.env.HAIKU_MONITOR_PRUNE || "3", 10);
+
 // ── Telemetry ────────────────────────────────────────────────
 
 const logDir = join(homedir(), ".claude-rewind-logs");

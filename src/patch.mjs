@@ -296,7 +296,7 @@ patch("Register Rewind tool", TOOL_LIST_ANCHOR, TOOL_LIST_REPLACEMENT);
 // ─────────────────────────────────────────────────────────────
 
 const MAIN_LOOP_ANCHOR = 'c3("query_recursive_call"),J={messages:[...F,...X6,...P6]';
-const MAIN_LOOP_REPLACEMENT = `c3("query_recursive_call"),
+const MAIN_LOOP_REPLACEMENT = `c3("query_recursive_call");
 
 /* --- REWIND PATCH: handle pending rewind --- */
 (function handleRewind() {
@@ -336,12 +336,127 @@ const MAIN_LOOP_REPLACEMENT = `c3("query_recursive_call"),
       rewindNumber: rw.rewindNumber,
     });
   }
-})(),
+})();
 /* --- END handle rewind --- */
+
+/* --- HAIKU MONITOR: check thinking for spiraling --- */
+if (globalThis.__HAIKU_MONITOR__) {
+  await (async function haikuMonitor() {
+    try {
+      // 1. Extract thinking text from this turn's assistant messages
+      var thinkingText = "";
+      for (var xi = 0; xi < X6.length; xi++) {
+        var xContent = X6[xi].message?.content;
+        if (!Array.isArray(xContent)) continue;
+        for (var ci = 0; ci < xContent.length; ci++) {
+          if (xContent[ci].type === "thinking" && xContent[ci].thinking) {
+            thinkingText += xContent[ci].thinking;
+          }
+        }
+      }
+
+      if (thinkingText.length < 500) return;
+
+      // 2. Heuristic: is the thinking suspicious?
+      var suspicious = false;
+
+      // 2a. Repeated 20-char substrings appearing 3+ times
+      var seen = {};
+      for (var si = 0; si < thinkingText.length - 20; si += 10) {
+        var sub = thinkingText.substring(si, si + 20);
+        seen[sub] = (seen[sub] || 0) + 1;
+        if (seen[sub] >= 3) { suspicious = true; break; }
+      }
+
+      // 2b. "Going in circles" keyword frequency
+      if (!suspicious) {
+        var circleWords = thinkingText.match(
+          /\\b(try again|let me try|another approach|actually,|wait,|hmm|let me reconsider|I was wrong|that didn't work|same error|still failing)\\b/gi
+        );
+        if (circleWords && circleWords.length >= 5) suspicious = true;
+      }
+
+      // 2c. High word overlap between first half and second half of thinking
+      if (!suspicious && thinkingText.length > 2000) {
+        var halfPt = Math.floor(thinkingText.length / 2);
+        var words1 = new Set(thinkingText.slice(0, halfPt).toLowerCase().split(/\\s+/).filter(function(w){return w.length>4}));
+        var words2 = thinkingText.slice(halfPt).toLowerCase().split(/\\s+/).filter(function(w){return w.length>4});
+        var overlap = 0;
+        for (var oi = 0; oi < words2.length; oi++) { if (words1.has(words2[oi])) overlap++; }
+        if (words2.length > 0 && overlap / words2.length > 0.6) suspicious = true;
+      }
+
+      if (!suspicious) return;
+
+      if (globalThis.__REWIND_LOG__) {
+        globalThis.__REWIND_LOG__("haiku_heuristic_triggered", {
+          thinkingLength: thinkingText.length,
+          turnCount: m,
+        });
+      }
+
+      // 3. Inject self-reflection nudge into the conversation.
+      // Instead of calling a separate model, we tell the current model
+      // it may be going in circles and ask it to use Rewind if it agrees.
+      // Build a summary of what the last few turns did (tool names + files)
+      var recentActions = [];
+      var lookback = [...F.slice(-20), ...X6, ...P6];
+      for (var lb = 0; lb < lookback.length; lb++) {
+        var lbContent = lookback[lb].message?.content;
+        if (!Array.isArray(lbContent)) continue;
+        for (var lbc = 0; lbc < lbContent.length; lbc++) {
+          var lbBlock = lbContent[lbc];
+          if (lbBlock.type === "tool_use") {
+            var detail = lbBlock.input?.command || lbBlock.input?.file_path || lbBlock.input?.pattern || "";
+            if (typeof detail === "string") detail = detail.slice(-60);
+            recentActions.push(lbBlock.name + ": " + detail);
+          }
+        }
+      }
+      var actionSummary = recentActions.slice(-10).join("\\n  ");
+
+      var nudgeMsg = i8({
+        content: "[CONTEXT MONITOR — turn " + m + "]\\n\\n" +
+          "Your recent thinking shows signs of repeated reasoning patterns. " +
+          "You may be going in circles.\\n\\n" +
+          "Recent tool calls:\\n  " + actionSummary + "\\n\\n" +
+          "Review your last few turns critically:\\n" +
+          "- Are you retrying the same approach with minor variations?\\n" +
+          "- Are you investigating the same files/functions repeatedly?\\n" +
+          "- Has your hypothesis changed or are you stuck on the same one?\\n\\n" +
+          "If you ARE going in circles, use the Rewind tool NOW to prune the " +
+          "failed turns and record what you tried. Then take a fundamentally " +
+          "different approach.\\n\\n" +
+          "If you are making genuine progress, continue — but be honest with yourself.",
+        isMeta: true,
+      });
+
+      // Append the nudge to P6 so it appears after the tool results
+      // and before the next model turn
+      P6.push(nudgeMsg);
+
+      if (globalThis.__REWIND_LOG__) {
+        globalThis.__REWIND_LOG__("monitor_nudge_injected", {
+          turnCount: m,
+          thinkingLength: thinkingText.length,
+          recentActions: recentActions.slice(-5),
+        });
+      }
+    } catch (haikuErr) {
+      // Never let monitor failure break the main loop
+      if (globalThis.__REWIND_LOG__) {
+        globalThis.__REWIND_LOG__("haiku_error", {
+          error: haikuErr?.message || String(haikuErr),
+        });
+      }
+    }
+  })();
+}
+/* --- END HAIKU MONITOR --- */
 
 J={messages:[...F,...X6,...P6]`;
 
-patch("Handle Rewind in main loop", MAIN_LOOP_ANCHOR, MAIN_LOOP_REPLACEMENT);
+patch("Handle Rewind + Haiku monitor in main loop", MAIN_LOOP_ANCHOR, MAIN_LOOP_REPLACEMENT);
 
 
 // ─────────────────────────────────────────────────────────────
