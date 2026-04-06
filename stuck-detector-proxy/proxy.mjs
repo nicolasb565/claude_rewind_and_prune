@@ -21,6 +21,7 @@ import { createServer } from "http";
 import { compact } from "./compact.mjs";
 import { pruneIfStuck, resetState } from "./stuck.mjs";
 import { log, logRequest } from "./log.mjs";
+import { fetchUpstream, getStats } from "./upstream.mjs";
 
 const PORT = parseInt(process.env.PROXY_PORT || "8080", 10);
 const UPSTREAM = process.env.PROXY_UPSTREAM || "https://api.anthropic.com";
@@ -32,6 +33,7 @@ log("proxy_start", {
   upstream: UPSTREAM,
   compactEnabled: COMPACT_ENABLED,
   stuckEnabled: STUCK_ENABLED,
+  ...getStats(),
 });
 
 const server = createServer(async (req, res) => {
@@ -39,6 +41,14 @@ const server = createServer(async (req, res) => {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   let body = Buffer.concat(chunks);
+
+  // Health/stats endpoint for monitoring
+  if (req.url === "/stats" && req.method === "GET") {
+    const stats = getStats();
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify(stats));
+    return;
+  }
 
   const isMessagesEndpoint =
     req.url?.startsWith("/v1/messages") && req.method === "POST";
@@ -83,12 +93,16 @@ const server = createServer(async (req, res) => {
     upstreamHeaders["accept-encoding"] = "identity";
 
     const upstreamUrl = UPSTREAM + req.url;
-    const upstreamRes = await fetch(upstreamUrl, {
-      method: req.method,
-      headers: upstreamHeaders,
-      body: req.method === "POST" || req.method === "PUT" ? body : undefined,
-      redirect: "follow",
-    });
+    const upstreamRes = await fetchUpstream(
+      upstreamUrl,
+      {
+        method: req.method,
+        headers: upstreamHeaders,
+        body: req.method === "POST" || req.method === "PUT" ? body : undefined,
+        redirect: "follow",
+      },
+      log,
+    );
 
     // Forward response status and headers
     const responseHeaders = {};
@@ -102,6 +116,7 @@ const server = createServer(async (req, res) => {
       log("upstream_non200", {
         status: upstreamRes.status,
         url: req.url,
+        ...getStats(),
       });
     }
 
@@ -125,7 +140,7 @@ const server = createServer(async (req, res) => {
 
     res.end();
   } catch (e) {
-    log("upstream_error", { error: e.message, url: req.url });
+    log("upstream_error", { error: e.message, url: req.url, ...getStats() });
     res.writeHead(502, { "content-type": "application/json" });
     res.end(
       JSON.stringify({
