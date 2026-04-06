@@ -73,13 +73,17 @@ Two categories of features:
 `self_sim`, `max_substr_repeat`, `circle_kw`, `false_starts`, `avg_sent_len`, `sent_len_std`, `vocab_diversity`, `code_ratio`, `question_marks`
 
 **Tool-call behavioral features** (6) — extracted from the message history:
-`bash_cmd_repeat` (+1.26), `grep_pattern_repeat` (+1.51), `same_tool_streak` (+1.36), `file_read_repeat` (+0.89), `tool_diversity`, `unique_files_ratio`
+`bash_cmd_repeat` (+2.84), `tool_diversity` (-3.03), `circle_kw` (+0.99), `code_ratio` (-1.53), `false_starts` (+0.70), `file_read_repeat` (-0.86)
 
-Tool features dominate: an agent re-running the same grep with slight variations or re-reading the same file is a stronger stuck signal than any text pattern.
+Tool features dominate: `bash_cmd_repeat` (agent re-running the same command) and low `tool_diversity` (same tool over and over) are the strongest stuck signals.
 
-At threshold 0.85: **99% precision, 38% recall** (trained on 212 windows from 10 tasks). Precision is prioritized — the nudge is a soft hint the agent can ignore, so false positives are cheap while false negatives just mean a missed nudge opportunity. More training data will improve recall.
+Trained on 151 windows with full tool-call data from 17 tasks (80 stuck, 71 productive):
 
-A cross-window similarity check (comparing current thinking to the last 3 turns) provides a secondary gate against false positives.
+| Threshold | Precision | Recall | FP | FN |
+|---|---|---|---|---|
+| 0.50 | 79% | 100% | 25 | 0 |
+| 0.85 | 85% | 96% | 16 | 4 |
+| 0.95 | 91% | 90% | 9 | 10 |
 
 ### Training Data
 
