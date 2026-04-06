@@ -145,12 +145,25 @@ server.listen(PORT, () => {
   console.log(`[stuck-detector-proxy] usage: ANTHROPIC_BASE_URL=http://localhost:${PORT} claude "..."`);
 });
 
+// Error handling — don't crash on unhandled errors
+process.on("uncaughtException", (err) => {
+  log("proxy_uncaught_exception", { error: err.message, stack: err.stack?.slice(0, 500) });
+  console.error(`[stuck-detector-proxy] Uncaught exception: ${err.message}`);
+});
+
+process.on("unhandledRejection", (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  const stack = reason instanceof Error ? reason.stack?.slice(0, 500) : undefined;
+  log("proxy_unhandled_rejection", { error: msg, stack });
+  console.error(`[stuck-detector-proxy] Unhandled rejection: ${msg}`);
+});
+
 // Clean shutdown
 process.on("SIGINT", () => {
-  log("proxy_stop", {});
+  log("proxy_stop", { reason: "SIGINT" });
   process.exit(0);
 });
 process.on("SIGTERM", () => {
-  log("proxy_stop", {});
+  log("proxy_stop", { reason: "SIGTERM" });
   process.exit(0);
 });
