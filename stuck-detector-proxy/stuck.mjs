@@ -149,7 +149,7 @@ export function pruneIfStuck(messages, log) {
   const toolFeats = extractToolFeatures(messages);
 
   // Classify thinking text + tool behavior
-  const threshold = parseFloat(process.env.STUCK_THRESHOLD || "0.85");
+  const threshold = parseFloat(process.env.STUCK_THRESHOLD || "0.80");
   const result = classify(thinking, toolFeats);
 
   if (result.score < threshold) return messages;

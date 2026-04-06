@@ -60,7 +60,7 @@ curl http://localhost:8080/stats
 | `COMPACT_KEEP_LAST` | `10` | Lines kept from end |
 | `COMPACT_MIN_LINES` | `50` | Minimum lines to trigger |
 | `STUCK_ENABLED` | `1` | Stuck detection |
-| `STUCK_THRESHOLD` | `0.85` | Classifier confidence threshold |
+| `STUCK_THRESHOLD` | `0.80` | Classifier confidence threshold |
 | `STUCK_COOLDOWN` | `5` | Turns between nudges |
 
 ### Stuck Classifier
