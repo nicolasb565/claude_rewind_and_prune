@@ -96,19 +96,26 @@ function sigmoid(x) {
 /**
  * Classify text as stuck or productive.
  * @param {string} text - Thinking block text
+ * @param {Object} [toolFeats] - Optional tool-call behavioral features from message history
  * @returns {{ score: number, label: string, reasons: string[] }}
  */
-export function classify(text) {
+export function classify(text, toolFeats) {
   if (text.length < 100) {
     return { score: 0, label: "productive", reasons: [] };
   }
 
   const feats = extractFeatures(text);
 
+  // Merge tool features if provided and model expects them
+  if (toolFeats) {
+    Object.assign(feats, toolFeats);
+  }
+
   // Scale features: (x - mean) / std
-  const scaled = feature_names.map((name, i) =>
-    (feats[name] - scaler_mean[i]) / scaler_scale[i]
-  );
+  const scaled = feature_names.map((name, i) => {
+    const val = feats[name] ?? 0;
+    return (val - scaler_mean[i]) / scaler_scale[i];
+  });
 
   // Dot product + intercept
   let logit = intercept;
@@ -122,7 +129,7 @@ export function classify(text) {
   // Top contributing features (same logic as classify.py)
   const reasons = [];
   for (let i = 0; i < feature_names.length; i++) {
-    if (coefficients[i] > 0.5 && feats[feature_names[i]] > 0) {
+    if (coefficients[i] > 0.5 && (feats[feature_names[i]] ?? 0) > 0) {
       reasons.push(feature_names[i]);
     }
   }
