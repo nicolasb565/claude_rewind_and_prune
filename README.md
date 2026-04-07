@@ -171,18 +171,39 @@ Tested on [GCC PR 123310](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=123310) �
 
 ## Related Work
 
+### Stuck/loop detection in agents
+
+- [SpecRA](https://openreview.net/forum?id=xVO4BqmzVD) (Oct 2025) — Uses FFT autocorrelation on token sequences to detect periodicity in agent output. Signal-processing approach at the token level, no behavioral features.
+- [Agentic Metacognition](https://arxiv.org/abs/2509.19783) (Xu, Sep 2025) — External metacognitive layer monitors a primary agent for repetitive actions and loop traps. On predicted failure, hands off to a human. Closest architectural match to our proxy approach.
+- [strongdm/attractor](https://github.com/strongdm/attractor/blob/main/coding-agent-loop-spec.md) — Open-source spec that tracks tool-call signatures over a sliding window, detects cycles, and injects a steering message. Same concept as our system but no ML classifier.
+- [Ralph](https://github.com/frankbria/ralph-claude-code) — Autonomous dev loop wrapper for Claude Code with exit detection and circuit breaker patterns.
+
+### Self-reflection and metacognition
+
+- [Reflexion](https://arxiv.org/abs/2303.11366) (Shinn et al., 2023) — Verbal self-reflection after task failure. Post-hoc, not real-time.
+- [Multi-Agent Reflexion](https://arxiv.org/html/2512.20845) (Dec 2025) — Diverse reasoning personas + judge to avoid repeating misconceptions.
+- [LLMs Have Metacognitive Monitoring](https://arxiv.org/abs/2505.13763) (Ji-An et al., May 2025) — Shows LLMs can monitor their own activations, but only in a low-dimensional subspace, and may learn to obfuscate internals to evade oversight.
+- [Experiential Reflective Learning](https://arxiv.org/html/2603.24639) (Mar 2026) — Builds reusable heuristics from past failure trajectories, injected as context for new tasks.
+
+### Context management
+
 - [MemGPT](https://arxiv.org/abs/2310.08560) — Virtual memory paging for LLMs
 - [LATS](https://arxiv.org/abs/2310.04406) — Tree search with backtracking for agents
-- [Reflexion](https://arxiv.org/abs/2303.11366) — Self-reflection for LLM agents
 - [Meta-Harness](https://arxiv.org/abs/2603.28052) — End-to-end harness optimization (raw traces beat summaries)
 - [context-mode](https://github.com/mksglu/context-mode) — MCP-based context savings plugin for Claude Code
 
+### What's different about our approach
+
+None of the above combine proxy-based interception, thinking-block text features, tool-call behavioral features, and a trained classifier with corrective nudge injection. The metacognition research (Ji-An et al.) suggests intrinsic self-monitoring is limited and gameable, supporting the case for an external monitor.
+
+Longer-term, this kind of monitoring belongs inside the model or API — similar to how speculative decoding uses a small draft model alongside the main model. A lightweight "reasoning monitor" model could run in parallel during inference, detecting stuck patterns at the token level and redirecting attention before a full stuck episode forms, without consuming the main model's capacity.
+
 ## Next Steps
 
-1. Collect more training data from diverse codebases (LAPACK, Boost, React)
-2. Evaluate classifier precision/recall on held-out tasks
-3. LoRA fine-tune an open source model (Qwen 3.5 Coder) on context management behaviors
-4. Benchmark on SWE-bench with the proxy
+1. Evaluate classifier on held-out tasks (train/test split)
+2. LoRA fine-tune an open source model (Qwen 3.5 Coder) on context management behaviors
+3. Benchmark on SWE-bench with the proxy
+4. Explore lightweight monitor model architecture (speculative-decoding-style parallel inference)
 
 ## License
 
