@@ -1,0 +1,50 @@
+{"id": "auth0__auth0-python-463_23", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=0 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "nipy__nipype-3325_33", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=1 \u2192 tight_loop==0"}
+{"id": "nipy__nipype-3325_38", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=1 \u2192 tight_loop==0"}
+{"id": "nipy__nipype-3325_39", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=8 errors=3 \u2192 diverse>=6"}
+{"id": "nipy__nipype-3325_75", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=2 diverse=1 errors=2 \u2192 no rule matched"}
+{"id": "python-lsp__python-lsp-server-454_21", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=3 \u2192 tight_loop==0"}
+{"id": "microsoft__electionguard-python-756_7", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=5 errors=7 \u2192 diverse>=tight+3"}
+{"id": "mirumee__ariadne-1098_22", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=3 errors=7 \u2192 no rule matched"}
+{"id": "pydantic__pydantic-1658_38", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=4 \u2192 tight_loop==0"}
+{"id": "alerta__python-alerta-client-205_8", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "astropy__astroquery-2444_26", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=3 \u2192 tight_loop==0"}
+{"id": "ebmdatalab__datalab-pandas-29_34", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=2 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "ebmdatalab__datalab-pandas-29_71", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=3 diverse=7 errors=2 \u2192 diverse>=6"}
+{"id": "ebmdatalab__datalab-pandas-29_85", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=3 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "sphinx-gallery__sphinx-gallery-625_40", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=3 \u2192 tight_loop==0"}
+{"id": "Melevir__cognitive_complexity-15_6", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=0 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "ppizarror__pygame-menu-357_6", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "ppizarror__pygame-menu-357_35", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "ppizarror__pygame-menu-357_49", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=0 \u2192 tight_loop==0"}
+{"id": "ppizarror__pygame-menu-357_50", "label": "STUCK", "confidence": "high", "reason": "tight_loop=3 diverse=1 errors=3 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "ppizarror__pygame-menu-357_63", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=0 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "astarte-platform__astarte-device-sdk-python-98_14", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "astarte-platform__astarte-device-sdk-python-98_53", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "auth0__auth0-python-500_2", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "auth0__auth0-python-500_3", "label": "STUCK", "confidence": "high", "reason": "tight_loop=4 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "auth0__auth0-python-500_9", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=3 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "gibsramen__evident-23_0", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "googleapis__python-api-core-546_0", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "adamchainz__ec2-metadata-350_29", "label": "STUCK", "confidence": "high", "reason": "tight_loop=4 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "wireservice__csvkit-800_37", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "ithaka__apiron-8_20", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "joke2k__django-environ-325_3", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "lucidsushi__gs_pip_install-132_39", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=1 errors=3 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "deardurham__ciprs-reader-38_8", "label": "STUCK", "confidence": "high", "reason": "tight_loop=4 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "deardurham__ciprs-reader-38_17", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=0 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "deardurham__ciprs-reader-38_36", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=2 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "deardurham__ciprs-reader-38_37", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "deardurham__ciprs-reader-38_60", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "pyupio__changelogs-232_10", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "streamlink__streamlink-1696_17", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=5 errors=8 \u2192 no rule matched"}
+{"id": "streamlink__streamlink-1696_29", "label": "STUCK", "confidence": "high", "reason": "tight_loop=3 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "streamlink__streamlink-1696_36", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=4 \u2192 tight_loop==0"}
+{"id": "streamlink__streamlink-1696_67", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "d3dave__cough-3_34", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=8 \u2192 tight_loop==0"}
+{"id": "drvinceknight__nbchkr-14_5", "label": "STUCK", "confidence": "high", "reason": "tight_loop=7 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "duo-labs__parliament-185_11", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=5 errors=4 \u2192 no rule matched"}
+{"id": "duo-labs__parliament-185_32", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "palantir__python-language-server-211_4", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "palantir__python-language-server-211_14", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "testing-cabal__systemfixtures-9_2", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}

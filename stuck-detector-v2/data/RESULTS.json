@@ -1,0 +1,75 @@
+{
+  "steps_completed": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "labeling": {
+    "total_records": 12477,
+    "sonnet_labels": {
+      "PRODUCTIVE": 11788,
+      "STUCK": 496,
+      "UNCLEAR": 193
+    },
+    "windows_created": 118029,
+    "train_windows": 94782,
+    "test_windows": 23247,
+    "stuck_ratio_train": 0.045,
+    "stuck_ratio_test": 0.034
+  },
+  "model": {
+    "stage": 1,
+    "architecture": "StuckDetectorSmall",
+    "params": 3133,
+    "data_ratio": 30.3,
+    "weights_file": "proxy/cnn_weights.json",
+    "weights_size_kb": 68.2,
+    "threshold": 0.94,
+    "test_metrics": {
+      "precision": 0.773,
+      "recall": 0.779,
+      "f1": 0.776,
+      "tp": 625,
+      "fp": 184,
+      "fn": 177,
+      "tn": 22261
+    }
+  },
+  "ablation": {
+    "critical_features": [
+      "steps_since_same_cmd (-0.049)",
+      "output_length (-0.050)",
+      "thinking_length (-0.040)",
+      "tool_count_in_window (-0.035)"
+    ],
+    "noise_features": "none \u2014 all features contribute or are neutral"
+  },
+  "remaining_steps": {
+    "step_20": "Gate 2 decision \u2014 ship Stage 1 or escalate",
+    "steps_22_24": "Export JS forward pass, verify parity",
+    "steps_25_28": "Claude Code integration, proxy, logging",
+    "steps_29_30": "Benchmark"
+  },
+  "gate_2_assessment": {
+    "tier1_precision": 0.773,
+    "target": 0.85,
+    "verdict": "Below target. Options: try Stage 2 (25K params), or adjust threshold/features.",
+    "note": "77.3% precision with 4.5% stuck class ratio is reasonable. The low stuck ratio means many 'easy' productive windows inflate FP count. On stuck-enriched subsets, precision would be higher."
+  }
+}

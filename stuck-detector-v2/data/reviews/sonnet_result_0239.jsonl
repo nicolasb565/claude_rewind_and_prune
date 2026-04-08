@@ -1,0 +1,50 @@
+{"id": "astropy__specutils-976_18", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=2 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "astropy__specutils-976_43", "label": "STUCK", "confidence": "high", "reason": "tight_loop=7 diverse=2 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "graphql-python__graphene-752_0", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=3 errors=5 \u2192 no rule matched"}
+{"id": "graphql-python__graphene-752_5", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=2 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "marshmallow-code__apispec-716_10", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=2 \u2192 tight_loop==0"}
+{"id": "OnroerendErfgoed__skosprovider_rdf-119_16", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=4 errors=3 \u2192 diverse>=tight+3"}
+{"id": "betamaxpy__betamax-170_30", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=1 errors=1 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "googleapis__python-spanner-316_24", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=3 \u2192 tight_loop==0"}
+{"id": "omni-us__jsonargparse-468_24", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "omni-us__jsonargparse-468_41", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=3 diverse=5 errors=6 \u2192 no rule matched"}
+{"id": "omni-us__jsonargparse-468_58", "label": "STUCK", "confidence": "high", "reason": "tight_loop=1 diverse=1 errors=8 \u2192 error_steps>=7 AND diverse<3"}
+{"id": "PyCQA__flake8-1726_19", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=3 diverse=7 errors=0 \u2192 diverse>=6"}
+{"id": "Pylons__webob-309_26", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "cunybpl__isdparser-2_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=8 errors=8 \u2192 diverse>=6"}
+{"id": "cunybpl__isdparser-2_8", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=1 errors=3 \u2192 no rule matched"}
+{"id": "django-money__django-money-689_35", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "django-money__django-money-689_36", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=3 \u2192 tight_loop==0"}
+{"id": "django-money__django-money-689_39", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "django-money__django-money-689_44", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "horejsek__python-fastjsonschema-24_25", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=6 errors=1 \u2192 diverse>=6"}
+{"id": "zalando-stups__senza-535_9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=8 \u2192 tight_loop==0"}
+{"id": "blairconrad__dicognito-73_15", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=5 \u2192 tight_loop==0"}
+{"id": "docker__docker-py-1150_9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=4 \u2192 tight_loop==0"}
+{"id": "docker__docker-py-1150_33", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "brightway-lca__brightway2-analyzer-19_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=7 \u2192 tight_loop==0"}
+{"id": "brightway-lca__brightway2-analyzer-19_55", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "brightway-lca__brightway2-analyzer-19_70", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=4 errors=8 \u2192 diverse>=tight+3"}
+{"id": "dropbox__stone-117_9", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=2 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "dropbox__stone-117_17", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=4 errors=6 \u2192 diverse>=tight+3"}
+{"id": "dropbox__stone-117_18", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=9 errors=8 \u2192 diverse>=6"}
+{"id": "dropbox__stone-117_19", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=2 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "dropbox__stone-117_27", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=5 \u2192 tight_loop==0"}
+{"id": "dropbox__stone-117_28", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=6 errors=7 \u2192 diverse>=6"}
+{"id": "dropbox__stone-117_40", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 \u2192 tight_loop==0"}
+{"id": "palantir__python-jsonrpc-server-37_43", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=2 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "simphony__simphony-remote-117_4", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "supakeen__pinnwand-234_4", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=0 \u2192 tight_loop==0"}
+{"id": "supakeen__pinnwand-234_6", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=3 \u2192 tight_loop==0"}
+{"id": "Ouranosinc__xclim-336_1", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 \u2192 tight_loop==0"}
+{"id": "Ouranosinc__xclim-336_6", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=3 \u2192 tight_loop==0"}
+{"id": "Ouranosinc__xclim-336_9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=3 \u2192 tight_loop==0"}
+{"id": "Ouranosinc__xclim-336_13", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=2 \u2192 tight_loop==0"}
+{"id": "Ouranosinc__xclim-336_18", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=6 errors=2 \u2192 diverse>=6"}
+{"id": "Ouranosinc__xclim-336_40", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=3 \u2192 tight_loop==0"}
+{"id": "Textualize__textual-3334_5", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "Textualize__textual-3334_28", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=2 \u2192 tight_loop==0"}
+{"id": "cunla__fakeredis-py-238_29", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=2 \u2192 tight_loop==0"}
+{"id": "tianocore__edk2-pytool-library-238_31", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "VirtusLab__git-machete-179_40", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=5 errors=8 \u2192 no rule matched"}
+{"id": "construct__construct-277_49", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}

@@ -1,0 +1,50 @@
+{"id": "mkaz__termgraph-87_26", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=1 errors=3 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "wireservice__csvkit-645_1", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "wireservice__csvkit-645_2", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=0 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "zopefoundation__DocumentTemplate-18_39", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=2 errors=4 \u2192 tight_loop==0"}
+{"id": "astropy__specutils-976_4", "label": "STUCK", "confidence": "high", "reason": "tight_loop=4 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "astropy__specutils-976_10", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=4 \u2192 tight_loop==0"}
+{"id": "astropy__specutils-976_48", "label": "STUCK", "confidence": "high", "reason": "tight_loop=4 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "astropy__specutils-976_58", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=4 \u2192 tight_loop==0"}
+{"id": "astropy__specutils-976_65", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=3 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "astropy__specutils-976_66", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=4 \u2192 tight_loop==0"}
+{"id": "omni-us__jsonargparse-468_21", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "pydantic__pydantic-2170_6", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "PyCQA__flake8-1726_2", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=1 errors=3 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pyout__pyout-92_34", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=7 errors=5 \u2192 diverse>=6"}
+{"id": "andialbrecht__sqlparse-764_17", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=3 errors=0 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "django-money__django-money-689_14", "label": "STUCK", "confidence": "high", "reason": "tight_loop=4 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "ifosch__accloudtant-82_4", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "oasis-open__cti-python-stix2-470_1", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=5 errors=4 \u2192 no rule matched"}
+{"id": "docker__docker-py-1150_10", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "docker__docker-py-1150_37", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=3 diverse=4 errors=4 \u2192 no rule matched"}
+{"id": "python-metar__python-metar-120_7", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "brightway-lca__brightway2-analyzer-19_2", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=3 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "brightway-lca__brightway2-analyzer-19_12", "label": "STUCK", "confidence": "high", "reason": "tight_loop=7 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "brightway-lca__brightway2-analyzer-19_14", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "brightway-lca__brightway2-analyzer-19_22", "label": "STUCK", "confidence": "high", "reason": "tight_loop=4 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "brightway-lca__brightway2-analyzer-19_32", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "brightway-lca__brightway2-analyzer-19_58", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "brightway-lca__brightway2-analyzer-19_72", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "dropbox__stone-117_11", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "dropbox__stone-117_24", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "dropbox__stone-117_30", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "dropbox__stone-117_37", "label": "STUCK", "confidence": "high", "reason": "tight_loop=4 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "palantir__python-jsonrpc-server-37_3", "label": "STUCK", "confidence": "high", "reason": "tight_loop=0 diverse=2 errors=8 \u2192 error_steps>=7 AND diverse<3"}
+{"id": "palantir__python-jsonrpc-server-37_9", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "palantir__python-jsonrpc-server-37_23", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=3 diverse=4 errors=8 \u2192 no rule matched"}
+{"id": "pydantic__pydantic-1562_31", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=0 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "simphony__simphony-remote-117_1", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "Ouranosinc__xclim-336_24", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=5 diverse=4 errors=7 \u2192 no rule matched"}
+{"id": "Textualize__textual-3334_8", "label": "STUCK", "confidence": "high", "reason": "tight_loop=4 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "Textualize__textual-3334_23", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "reata__sqllineage-40_33", "label": "STUCK", "confidence": "high", "reason": "tight_loop=7 diverse=1 errors=0 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "mie-lab__trackintel-408_28", "label": "STUCK", "confidence": "high", "reason": "tight_loop=7 diverse=2 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "mie-lab__trackintel-408_43", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pylint-dev__astroid-1903_0", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=0 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pylint-dev__astroid-1903_17", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=0 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pylint-dev__astroid-1903_25", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "pylint-dev__astroid-1903_42", "label": "STUCK", "confidence": "high", "reason": "tight_loop=4 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pylint-dev__astroid-1903_44", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=8 \u2192 tight_loop==0"}
+{"id": "marshmallow-code__apispec-690_11", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pypa__setuptools_scm-573_22", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=3 diverse=5 errors=7 \u2192 no rule matched"}

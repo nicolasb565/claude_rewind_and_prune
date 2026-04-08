@@ -1,0 +1,50 @@
+{"id": "ebdc604f-ddad-bcb7-a617-1db95d82daf3", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=4 \u2192 tight_loop==0"}
+{"id": "ccb99457-5d21-a653-cf52-4607a046e802", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=4 \u2192 tight_loop==0"}
+{"id": "b0dabbdf-7482-ce8c-d227-286fb0573ded", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=5 \u2192 tight_loop==0"}
+{"id": "a4ed0ab8-b579-a6d2-a37e-8705e250eaf5", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=5 \u2192 tight_loop==0"}
+{"id": "ffa57a73-e5b7-453a-efe1-0337f33a2f22", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "9bb3da1a-634c-61bf-143e-fccedd30bd93", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=3 \u2192 tight_loop==0"}
+{"id": "88dad015-7fca-0f63-0c03-e355bd12ee29", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=1 \u2192 tight_loop==0"}
+{"id": "4617a01e-7595-abc1-1423-88301b6f068a", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=6 \u2192 tight_loop==0"}
+{"id": "8d7e736b-da85-262c-eff7-aa03e8064a83", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=3 \u2192 tight_loop==0"}
+{"id": "1e87b994-ef4c-4f29-7438-cbb07a573b39", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 \u2192 tight_loop==0"}
+{"id": "f7c37fb9-2bbc-f6af-de77-4031d586dc94", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=7 \u2192 tight_loop==0"}
+{"id": "ee16a765-f10f-8f28-cd97-a825d669fa83", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "8565adfe-f509-554b-fe7f-e094f937eece", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=4 \u2192 tight_loop==0"}
+{"id": "4eddbdff-be66-b92a-857c-72cb4e4fad0e", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=6 errors=2 \u2192 diverse>=6"}
+{"id": "2e3d2e2b-f2cf-4a59-7c41-c3ddb85c8bab", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=3 \u2192 tight_loop==0"}
+{"id": "d3d4f706-d0eb-bfaf-15d5-ccf1df20af7b", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 \u2192 tight_loop==0"}
+{"id": "e10b3252-299f-40a2-addf-3aa04b45b2ab", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=1 \u2192 tight_loop==0"}
+{"id": "41f80590-b0fe-a45b-389b-07ab21c220ba", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=2 diverse=4 errors=4 \u2192 no rule matched"}
+{"id": "442c87fd-03a2-aa9a-b340-78a75fa20e59", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=3 \u2192 tight_loop==0"}
+{"id": "50e65b00-1fcd-aaae-b84c-657fe8a8f900", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "0848c8b3-b9b7-5124-ac8c-14370314a5d0", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=3 errors=1 \u2192 no rule matched"}
+{"id": "6d4b7426-3d0d-a536-e743-8a931b4ddd78", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=4 \u2192 tight_loop==0"}
+{"id": "7d6ce86a-87de-cec4-60f9-2c36257c9e5a", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=3 \u2192 tight_loop==0"}
+{"id": "728b71bc-b28d-bdb7-a60d-24f80e5d67a5", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=1 \u2192 tight_loop==0"}
+{"id": "f6962fcb-ab9c-704a-6e29-db5634084409", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=8 \u2192 tight_loop==0"}
+{"id": "433dcffe-429b-0906-3c0e-9c5d1ddbead1", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=6 \u2192 diverse>=6"}
+{"id": "0829f7c5-22d7-c80b-19dc-ffef9deac00c", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "b5214008-01e4-d9c7-b06f-6f5b84a41f2a", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=1 \u2192 tight_loop==0"}
+{"id": "0dd421b5-4f10-0d25-332e-1e998decbb8c", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 \u2192 tight_loop==0"}
+{"id": "8fb48dfa-4408-36a4-a6fd-3a4dd8db1600", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=3 \u2192 tight_loop==0"}
+{"id": "d13e35c2-90de-2fa6-21cc-284484a83a5f", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "ed3c8eb5-94b4-812f-51ba-4e041611548c", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=4 \u2192 tight_loop==0"}
+{"id": "222a0302-ccef-8873-7762-6b2989dfec13", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=2 \u2192 tight_loop==0"}
+{"id": "4fdf2bc7-fe9d-9f07-4432-d7ab8d26e6d1", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=1 \u2192 tight_loop==0"}
+{"id": "4c75bfa7-7716-7a2c-2e93-9454ead25c6e", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=3 diverse=4 errors=3 \u2192 no rule matched"}
+{"id": "bf3e425a-450d-c324-b4db-b620be5bdce0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=2 \u2192 tight_loop==0"}
+{"id": "54c128f0-6836-54b2-1b7d-6f908edb3c09", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=0 \u2192 tight_loop==0"}
+{"id": "3a2ec4c7-db1a-76fe-7850-babf7982b8e9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 \u2192 tight_loop==0"}
+{"id": "74b602d4-ab1e-397a-82da-fc3059dbcbde", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "4f5de999-36bf-7d15-6a42-9b6eb1c33f3e", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=1 \u2192 tight_loop==0"}
+{"id": "a3ef878a-44a0-7cfc-0aec-9b728603e5f9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "3ba31b82-780e-c4f7-d3be-e00d03e53964", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "29c297a1-5116-6060-c042-ff0f482b2a4c", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=6 errors=2 \u2192 diverse>=6"}
+{"id": "f0c89beb-0744-76a4-cebc-90c2bdbb2ecd", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=3 \u2192 tight_loop==0"}
+{"id": "29188956-58c9-0875-5fad-f01b5529f19c", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=3 errors=3 \u2192 no rule matched"}
+{"id": "a6aa0515-1c32-ba39-c188-99c175960732", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "e50a58c9-f090-c0ce-e047-c079ac7e3b8f", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "8bb2ee16-3432-4cd2-2dbf-400bcbaec736", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=5 \u2192 tight_loop==0"}
+{"id": "f71e7772-4866-7870-03e8-dcb4550c40d0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=1 \u2192 tight_loop==0"}
+{"id": "7a5f785b-0a69-f177-6a72-7438fdd212d4", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=3 \u2192 tight_loop==0"}

@@ -1,0 +1,227 @@
+{
+  "window_size_decision": {
+    "chosen": 10,
+    "rationale": "Strong models have median 4-step stuck episodes; window 10 captures episode + 6 steps context. Weak models have longer episodes (median 20) but window 10 captures the transition point."
+  },
+  "stuck_episode_lengths": {
+    "weak_model_exact_repeat": {
+      "median": 20,
+      "p25": 11,
+      "p75": 39,
+      "n": 124
+    },
+    "weak_model_cycles": {
+      "median": 25,
+      "p25": 16,
+      "p75": 40,
+      "n": 364
+    },
+    "strong_model_exact_repeat": {
+      "median": 4,
+      "p25": 4,
+      "p75": 5,
+      "n": 22
+    },
+    "strong_model_cycles": {
+      "median": 6,
+      "p25": 6,
+      "p75": 6,
+      "n": 4
+    }
+  },
+  "trajectory_counts": {
+    "adp_nebius": 13389,
+    "adp_swe_smith": 17380,
+    "adp_swe_gym": 491,
+    "adp_orca_agentinstruct": 1046410,
+    "adp_webshop": 351,
+    "nebius_openhands": 67074,
+    "nemotron": 51029,
+    "menvdata": 3918,
+    "openhands_feedback": 275
+  },
+  "schema_notes": {
+    "adp_format": "id, content (list of steps with class_/content/function/kwargs/description), details",
+    "openhands_format": "messages (list with role/content/tool_calls), tools",
+    "orca_agentinstruct": "EXCLUDED: 1M+ entries but only 2-4 steps each, instruction-following Q&A not agent trajectories",
+    "swe_smith": "NO outcome labels (no resolved, no exit_status in details)",
+    "swe_gym": "ALL resolved=True (491 trajectories, no failures)",
+    "nebius_adp": "exit_status available but no resolved field",
+    "nebius_oh": "resolved (0/1) and exit_status available",
+    "nemotron": "NO resolved field, single split named r2e_gym not train",
+    "menvdata": "tools, messages, docker_image - no explicit resolved field"
+  },
+  "outcome_distribution": {
+    "nebius_oh": {
+      "resolved": 32161,
+      "failed": 34913
+    }
+  },
+  "per_dataset_stats": {
+    "adp/nebius_SWE-agent-trajectories": {
+      "count": 13389,
+      "steps": {
+        "min": 4,
+        "max": 242,
+        "median": 13,
+        "mean": 16.16909403241467
+      },
+      "repetition_score": {
+        "min": 0.3,
+        "max": 0.9958677685950413,
+        "median": 0.375,
+        "mean": 0.41374821745309853
+      },
+      "tools": {
+        "other": 105689,
+        "bash": 57868,
+        "search": 27000,
+        "view": 13256,
+        "submit": 12675
+      },
+      "exit_statuses": {
+        "submitted": 12672,
+        "submitted (exit_context)": 712,
+        "submitted (exit_format)": 5
+      },
+      "resolved": {}
+    },
+    "adp/swe-smith": {
+      "count": 17380,
+      "steps": {
+        "min": 5,
+        "max": 141,
+        "median": 23,
+        "mean": 26.75529344073648
+      },
+      "repetition_score": {
+        "min": 0.3,
+        "max": 0.9833333333333333,
+        "median": 0.46153846153846156,
+        "mean": 0.4650991806615951
+      },
+      "tools": {
+        "edit": 230076,
+        "bash": 187132,
+        "submit": 30419,
+        "other": 17380
+      },
+      "exit_statuses": {},
+      "resolved": {}
+    },
+    "adp/swe-gym_openhands_sampled_trajectories": {
+      "count": 491,
+      "steps": {
+        "min": 6,
+        "max": 51,
+        "median": 16,
+        "mean": 19.688391038696537
+      },
+      "repetition_score": {
+        "min": 0.3,
+        "max": 0.9019607843137255,
+        "median": 0.4,
+        "mean": 0.4177767046720066
+      },
+      "tools": {
+        "edit": 5884,
+        "bash": 2441,
+        "other": 1342
+      },
+      "exit_statuses": {},
+      "resolved": {
+        "True": 491
+      }
+    },
+    "adp/agenttuning_webshop": {
+      "count": 351,
+      "steps": {
+        "min": 5,
+        "max": 11,
+        "median": 5,
+        "mean": 5.678062678062678
+      },
+      "repetition_score": {
+        "min": 0.3333333333333333,
+        "max": 0.5714285714285714,
+        "median": 0.4,
+        "mean": 0.384304892638226
+      },
+      "tools": {
+        "other": 1993
+      },
+      "exit_statuses": {},
+      "resolved": {}
+    },
+    "nebius_openhands": {
+      "count": 67074,
+      "sampled": 5000,
+      "steps": {
+        "min": 24,
+        "max": 99,
+        "median": 58,
+        "mean": 61.4824
+      },
+      "repetition_score": {
+        "median": 0.6101694915254238,
+        "mean": 0.6105240136397307
+      },
+      "tools": {
+        "bash": 163768,
+        "view": 82014,
+        "edit": 53008,
+        "other": 8622
+      },
+      "resolved": {
+        "0": 2568,
+        "1": 2432
+      }
+    },
+    "nemotron": {
+      "count": 51029,
+      "sampled": 3000,
+      "steps": {
+        "min": 24,
+        "max": 98,
+        "median": 55,
+        "mean": 56.41866666666667
+      },
+      "repetition_score": {
+        "median": 0.575,
+        "mean": 0.5774879887825273
+      },
+      "tools": {
+        "bash": 94982,
+        "view": 43740,
+        "edit": 27534,
+        "other": 3000
+      }
+    },
+    "menvdata": {
+      "count": 3918,
+      "sampled": 1000,
+      "steps": {
+        "min": 28,
+        "max": 256,
+        "median": 81,
+        "mean": 87.258
+      },
+      "repetition_score": {
+        "median": 0.5408999665439946,
+        "mean": 0.5433173402253862
+      },
+      "tools": {
+        "bash": 57333,
+        "view": 16719,
+        "edit": 12784,
+        "submit": 422
+      },
+      "languages": {
+        "go": 503,
+        "js": 434,
+        "java": 47,
+        "c": 16
+      }
+    }
+  }
+}

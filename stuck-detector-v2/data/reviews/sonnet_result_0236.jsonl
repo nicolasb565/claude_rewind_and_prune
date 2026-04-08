@@ -1,0 +1,50 @@
+{"id": "joke2k__faker-1569_21", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=8 \u2192 tight_loop==0"}
+{"id": "mkdocs__mkdocs-2852_3", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=7 \u2192 diverse>=6"}
+{"id": "mkdocs__mkdocs-2852_4", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "ResearchObject__ro-crate-py-170_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=7 \u2192 diverse>=6"}
+{"id": "beetbox__beets-3868_11", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=1 errors=3 \u2192 no rule matched"}
+{"id": "beetbox__beets-3868_33", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=5 \u2192 tight_loop==0"}
+{"id": "dapr__python-sdk-272_55", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=6 errors=6 \u2192 diverse>=6"}
+{"id": "rapidpro__rapidpro-python-38_9", "label": "STUCK", "confidence": "high", "reason": "tight_loop=7 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "spdx__tools-python-467_19", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=4 \u2192 tight_loop==0"}
+{"id": "3YOURMIND__django-migration-linter-258_2", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=3 errors=2 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "zalando-stups__senza-397_42", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=3 \u2192 tight_loop==0"}
+{"id": "zopefoundation__DocumentTemplate-55_55", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=2 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "iterative__dvc-2304_24", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=6 \u2192 tight_loop==0"}
+{"id": "stravalib__stravalib-309_3", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=5 \u2192 tight_loop==0"}
+{"id": "stravalib__stravalib-309_25", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=2 errors=2 \u2192 tight_loop==0"}
+{"id": "stravalib__stravalib-309_41", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=8 \u2192 tight_loop==0"}
+{"id": "stravalib__stravalib-309_52", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=2 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "stravalib__stravalib-309_64", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=5 \u2192 diverse>=6"}
+{"id": "canonical__operator-1024_4", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=5 \u2192 tight_loop==0"}
+{"id": "acorg__dark-matter-663_18", "label": "STUCK", "confidence": "high", "reason": "tight_loop=7 diverse=1 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "alephdata__followthemoney-871_3", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "alephdata__followthemoney-871_8", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=7 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "alephdata__followthemoney-871_9", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=3 diverse=3 errors=6 \u2192 no rule matched"}
+{"id": "bugsnag__bugsnag-python-188_2", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=2 diverse=4 errors=8 \u2192 no rule matched"}
+{"id": "mc706__changelog-cli-34_3", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "Textualize__textual-441_33", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=1 \u2192 tight_loop==0"}
+{"id": "asottile__pyupgrade-217_29", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=5 \u2192 tight_loop==0"}
+{"id": "cta-observatory__pyirf-193_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=4 \u2192 tight_loop==0"}
+{"id": "cta-observatory__pyirf-193_28", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=1 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pypa__wheel-250_41", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=3 errors=3 \u2192 no rule matched"}
+{"id": "scitokens__scitokens-193_7", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=8 \u2192 tight_loop==0"}
+{"id": "sendgrid__sendgrid-python-233_9", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=3 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "TheFriendlyCoder__friendlypins-77_13", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=4 \u2192 tight_loop==0"}
+{"id": "asottile__pyupgrade-438_9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=2 \u2192 tight_loop==0"}
+{"id": "kangasta__fdbk-77_30", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=5 errors=8 \u2192 diverse>=tight+3"}
+{"id": "pydata__pydata-google-auth-31_4", "label": "STUCK", "confidence": "high", "reason": "tight_loop=7 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "pydata__pydata-google-auth-31_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=6 \u2192 tight_loop==0"}
+{"id": "fatiando__pooch-180_3", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=3 errors=6 \u2192 no rule matched"}
+{"id": "python-metar__python-metar-152_26", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=4 diverse=6 errors=4 \u2192 diverse>=6"}
+{"id": "zulip__zulip-terminal-1350_1", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "zulip__zulip-terminal-1350_56", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=1 \u2192 tight_loop==0"}
+{"id": "ResearchObject__ro-crate-py-161_32", "label": "STUCK", "confidence": "high", "reason": "tight_loop=4 diverse=2 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "click-contrib__sphinx-click-94_7", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "dlce-eva__python-nexus-27_36", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "magmax__python-inquirer-526_2", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=1 errors=3 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "magmax__python-inquirer-526_12", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=0 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "Backblaze__B2_Command_Line_Tool-420_25", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "Backblaze__B2_Command_Line_Tool-420_36", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=2 diverse=1 errors=6 \u2192 no rule matched"}
+{"id": "rigetti__pyquil-1694_24", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "rigetti__pyquil-1694_37", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=5 errors=4 \u2192 diverse>=tight+3"}

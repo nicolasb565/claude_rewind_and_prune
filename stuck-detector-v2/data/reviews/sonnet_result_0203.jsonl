@@ -1,0 +1,50 @@
+{"id": "Project-MONAI__MONAI-4186_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=5 \u2192 tight_loop==0"}
+{"id": "Project-MONAI__MONAI-440_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=3 \u2192 tight_loop==0"}
+{"id": "pandas-dev__pandas-48797_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=4 \u2192 tight_loop==0"}
+{"id": "pandas-dev__pandas-52077_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=2 \u2192 tight_loop==0"}
+{"id": "Project-MONAI__MONAI-6895_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=3 \u2192 tight_loop==0"}
+{"id": "facebookresearch__hydra-1560_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=5 errors=2 \u2192 diverse>=tight+3"}
+{"id": "Project-MONAI__MONAI-5543_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=3 \u2192 tight_loop==0"}
+{"id": "Project-MONAI__MONAI-3384_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "Project-MONAI__MONAI-3478_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=7 \u2192 tight_loop==0"}
+{"id": "Project-MONAI__MONAI-1884_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=7 \u2192 tight_loop==0"}
+{"id": "Project-MONAI__MONAI-4847_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=3 \u2192 tight_loop==0"}
+{"id": "Project-MONAI__MONAI-5093_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "modin-project__modin-7225_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=3 \u2192 tight_loop==0"}
+{"id": "pandas-dev__pandas-49011_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=6 \u2192 tight_loop==0"}
+{"id": "Project-MONAI__MONAI-4796_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=4 errors=5 \u2192 diverse>=tight+3"}
+{"id": "getmoto__moto-6226_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=5 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-4972_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=4 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-5959_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=3 \u2192 tight_loop==0"}
+{"id": "Project-MONAI__MONAI-6924_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=2 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-5109_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=7 \u2192 tight_loop==0"}
+{"id": "pandas-dev__pandas-48995_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=5 errors=5 \u2192 diverse>=tight+3"}
+{"id": "getmoto__moto-6567_0", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=3 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "getmoto__moto-7335_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=6 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-6387_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=2 \u2192 diverse>=6"}
+{"id": "Project-MONAI__MONAI-4662_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=4 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-5516_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=6 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-6204_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=5 \u2192 tight_loop==0"}
+{"id": "Project-MONAI__MONAI-5182_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=4 \u2192 tight_loop==0"}
+{"id": "Project-MONAI__MONAI-2645_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=6 \u2192 tight_loop==0"}
+{"id": "Project-MONAI__MONAI-5908_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=4 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-6509_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=3 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-7212_0", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=3 diverse=4 errors=6 \u2192 no rule matched"}
+{"id": "python__mypy-10683_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=4 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-6802_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=9 errors=3 \u2192 diverse>=6"}
+{"id": "Project-MONAI__MONAI-6560_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=7 \u2192 tight_loop==0"}
+{"id": "python__mypy-11134_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=4 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-5899_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=4 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-5155_0", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=2 diverse=4 errors=4 \u2192 no rule matched"}
+{"id": "getmoto__moto-5258_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=3 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-5200_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=5 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-6410_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=7 \u2192 tight_loop==0"}
+{"id": "conan-io__conan-10959_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=5 errors=7 \u2192 diverse>=tight+3"}
+{"id": "python__mypy-10308_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=5 \u2192 tight_loop==0"}
+{"id": "iterative__dvc-4075_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=8 errors=2 \u2192 diverse>=6"}
+{"id": "Project-MONAI__MONAI-6090_0", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "python__mypy-11632_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=3 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-7023_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=6 errors=7 \u2192 diverse>=6"}
+{"id": "python__mypy-10036_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=5 \u2192 tight_loop==0"}
+{"id": "getmoto__moto-6913_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=7 \u2192 diverse>=6"}
+{"id": "python__mypy-15976_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=3 \u2192 tight_loop==0"}

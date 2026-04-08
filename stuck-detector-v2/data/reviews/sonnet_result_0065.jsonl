@@ -1,0 +1,50 @@
+{"id": "menvdata_3250", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=7 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3251", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=6 errors=4 -> diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3252", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=6 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3253", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=8 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3254", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=4 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3255", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=5 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3256", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=4 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3257", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=2 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3258", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=3 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3259", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=3 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3260", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=4 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3261", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=2 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3262", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=7 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3263", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=5 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3264", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=3 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3265", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=5 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3266", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=2 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3267", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=6 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3268", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=7 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3269", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=4 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3270", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=7 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3271", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=6 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3272", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=10 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3273", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=9 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3274", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=5 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3275", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=7 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3276", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=5 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3277", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=5 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3278", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=5 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3279", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=10 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3280", "label": "STUCK", "confidence": "high", "reason": "tight_loop=0 diverse=2 errors=8 -> errors>=7 AND diverse<3; tight==0; has_submit AND diverse>=2"}
+{"id": "menvdata_3281", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=4 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3282", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=5 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3283", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=7 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3284", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3285", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=5 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3286", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=4 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3287", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=6 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3288", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=7 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3289", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=9 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3290", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=2 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3291", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=3 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3292", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3293", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=4 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3294", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=8 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3295", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=3 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3296", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=6 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3297", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=6 -> tight==0; diverse>=tight+3; diverse>=6; has_submit AND diverse>=2"}
+{"id": "menvdata_3298", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=7 -> tight==0; diverse>=tight+3; diverse>=6"}
+{"id": "menvdata_3299", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=5 -> tight==0; diverse>=tight+3; diverse>=6"}

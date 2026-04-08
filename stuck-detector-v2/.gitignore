@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Downloaded datasets (large, reproducible from HuggingFace)
+data/adp/
+data/separate/
+
+# Large intermediate data (reproducible from scripts)
+data/curated_pool.jsonl
+data/train_windows.jsonl
+data/test_id.jsonl
+
+# Review batch inputs (reproducible from prepare_batches.py)
+data/reviews/batch_*.jsonl
+
+# PyTorch checkpoint (cnn_weights.json is the portable format)
+proxy/cnn_checkpoint.pt
+
+# Haiku results (superseded by Sonnet)
+data/reviews/haiku_result_*.jsonl

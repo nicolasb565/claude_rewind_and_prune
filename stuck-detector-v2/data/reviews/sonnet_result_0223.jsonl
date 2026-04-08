@@ -1,0 +1,50 @@
+{"id": "streamlink__streamlink-3019_26", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=6 \u2192 tight_loop==0"}
+{"id": "joke2k__django-environ-325_10", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=4 \u2192 tight_loop==0"}
+{"id": "ithaka__apiron-38_3", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=3 \u2192 tight_loop==0"}
+{"id": "mie-lab__trackintel-217_36", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=4 \u2192 tight_loop==0"}
+{"id": "glotzerlab__signac-269_3", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=2 \u2192 diverse>=6"}
+{"id": "spdx__tools-python-467_38", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=3 \u2192 tight_loop==0"}
+{"id": "mhostetter__galois-219_22", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=4 \u2192 tight_loop==0"}
+{"id": "horejsek__python-fastjsonschema-27_35", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=8 errors=3 \u2192 diverse>=6"}
+{"id": "pypa__setuptools_scm-573_58", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=6 \u2192 tight_loop==0"}
+{"id": "kodemore__kink-43_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=5 \u2192 tight_loop==0"}
+{"id": "3YOURMIND__django-migration-linter-258_4", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=5 \u2192 tight_loop==0"}
+{"id": "simonsobs__ocs-332_20", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=5 \u2192 tight_loop==0"}
+{"id": "tianocore__edk2-pytool-library-238_18", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=3 diverse=5 errors=5 \u2192 has_submit AND diverse>=2"}
+{"id": "django-money__django-money-594_2", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=4 \u2192 tight_loop==0"}
+{"id": "microsoft__torchgeo-675_41", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=5 \u2192 tight_loop==0"}
+{"id": "pvlib__pvlib-python-1239_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=4 \u2192 tight_loop==0"}
+{"id": "mwouts__jupytext-368_4", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=3 \u2192 tight_loop==0"}
+{"id": "wfondrie__mokapot-65_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=2 \u2192 tight_loop==0"}
+{"id": "mkaz__termgraph-87_31", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=4 \u2192 tight_loop==0"}
+{"id": "horejsek__python-fastjsonschema-27_39", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "testing-cabal__systemfixtures-9_42", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=5 \u2192 tight_loop==0"}
+{"id": "antirotor__speedcopy-6_60", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=6 \u2192 tight_loop==0"}
+{"id": "coverahealth__dataspec-4_30", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=5 errors=5 \u2192 diverse>=tight+3"}
+{"id": "Textualize__textual-1427_6", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=8 \u2192 tight_loop==0"}
+{"id": "zamzterz__Flask-pyoidc-96_26", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=7 \u2192 tight_loop==0"}
+{"id": "spdx__tools-python-467_34", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=3 \u2192 tight_loop==0"}
+{"id": "iris-hep__qastle-52_9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=4 \u2192 tight_loop==0"}
+{"id": "scikit-hep__vector-444_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "palantir__python-language-server-211_43", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 \u2192 tight_loop==0"}
+{"id": "urllib3__urllib3-1692_11", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=3 \u2192 tight_loop==0"}
+{"id": "python-lsp__python-lsp-server-454_20", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=7 \u2192 tight_loop==0"}
+{"id": "d-Rickyy-b__pyBrematic-30_9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=7 \u2192 tight_loop==0"}
+{"id": "agronholm__anyio-666_14", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=5 diverse=4 errors=4 \u2192 has_submit AND diverse>=2"}
+{"id": "tobymao__sqlglot-2443_35", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=3 diverse=4 errors=4 \u2192 has_submit AND diverse>=2"}
+{"id": "python-lsp__python-lsp-server-454_19", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=3 diverse=4 errors=2 \u2192 has_submit AND diverse>=2"}
+{"id": "iterative__dvc-7360_44", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=3 diverse=4 errors=1 \u2192 has_submit AND diverse>=2"}
+{"id": "palantir__python-language-server-211_46", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=4 \u2192 tight_loop==0"}
+{"id": "hsahovic__poke-env-68_25", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=5 errors=5 \u2192 diverse>=tight+3"}
+{"id": "asottile__all-repos-91_55", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=6 errors=0 \u2192 diverse>=6"}
+{"id": "peopledoc__vault-cli-111_65", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=3 \u2192 diverse>=6"}
+{"id": "bryanyang0528__ksql-python-73_33", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=6 errors=8 \u2192 diverse>=6"}
+{"id": "iris-hep__qastle-52_7", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=6 errors=2 \u2192 diverse>=6"}
+{"id": "nickstenning__honcho-218_18", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=6 \u2192 diverse>=6"}
+{"id": "Axelrod-Python__Axelrod-638_34", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=2 \u2192 tight_loop==0"}
+{"id": "pydantic__pydantic-1174_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=4 \u2192 tight_loop==0"}
+{"id": "iterative__dvc-4747_41", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=2 \u2192 tight_loop==0"}
+{"id": "nipy__nipype-3325_14", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=6 errors=1 \u2192 diverse>=6"}
+{"id": "pycasbin__sqlalchemy-adapter-34_9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=3 diverse=6 errors=0 \u2192 diverse>=6"}
+{"id": "macbre__sql-metadata-127_22", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "mwouts__jupytext-368_16", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}

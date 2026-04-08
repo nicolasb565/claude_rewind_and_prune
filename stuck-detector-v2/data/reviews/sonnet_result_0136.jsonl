@@ -1,0 +1,50 @@
+{"id": "chatcmpl-b051dd70fb4cab0c3a1038fa6ea7d412", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-fba8af7e389f7ff831e80a275898c9eb", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-47e8be4778163ed5ed6a68cad3b6b1ac", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=5 \u2192 tight_loop==0"}
+{"id": "chatcmpl-8b36e9423bfa861380b7e340c3ec8a16", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-453ce5240d772cba4e4cda42fe9e5044", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=5 \u2192 tight_loop==0"}
+{"id": "chatcmpl-df118c3cbd1258eb8a054c917c20ebbf", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-bbdd98006afe52a6c7e7e4d7d41d04a0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-e1fb7e704203f1e5d471eeb64b57ef66", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-c44e16e5c7003c6984a51996ca66a3cf", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-98885e6a7f55e9782c8517f0ad88b4de", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-41427874be0d9723219a4cf431bc9583", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-9e2641ba3766b4f441eccc3169be1629", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-062920946f4e68746f02c0ff6f58ade5", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=2 errors=4 \u2192 no rule matched"}
+{"id": "chatcmpl-fba774e892dfd06bf86260943ed05225", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-4082073d39f954e66adc3ed58056e683", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=6 errors=2 \u2192 diverse>=6"}
+{"id": "chatcmpl-b4d3dbebda0adf72e77176c6678e7441", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-d188300ffc800479c100ee4e3b5a392c", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-583d7dca881cd2b15f4ea42b440fd66b", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=5 errors=1 \u2192 diverse>=tight+3"}
+{"id": "chatcmpl-d3a9ff606e7d9fbfe08370a7b98b7863", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-0b986e548728f9f71deb5e9749c17ae6", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=5 errors=3 \u2192 diverse>=tight+3"}
+{"id": "chatcmpl-6ae73b16ba76912f74354b7d0eb1b42b", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-f021ed9f7ae3c52b5619f4af61352d83", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-43a110576adfb1271c0807cc42cbd463", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=3 diverse=2 errors=1 \u2192 no rule matched"}
+{"id": "chatcmpl-27d50222385c006d51e7304a6fdeea3d", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-afdb0d25e144c4dfb6d6986db2970df2", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-99bb11fe1dadcaa032be57d4752051b3", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-d6b24ef8f124466dfc0a6f92a24107ee", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-67ab53565445231ac51ae0268f9921f3", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=3 errors=5 \u2192 no rule matched"}
+{"id": "chatcmpl-cdfcde50c9a8df917c7480dda7b321b9", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=4 errors=1 \u2192 no rule matched"}
+{"id": "chatcmpl-9aebcdaa07eca98f2e911e2d5f49e2a3", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=2 \u2192 diverse>=6"}
+{"id": "chatcmpl-669f28df0dbc83a347848ca745be9ed4", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=9 errors=3 \u2192 diverse>=6"}
+{"id": "chatcmpl-63962ef53a3a9ffd45689d5b486199b2", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-f475e98b03e507080976c45ced137489", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-f5d3833b38eb881fdf127c780744dda1", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=6 \u2192 tight_loop==0"}
+{"id": "chatcmpl-b6bf317117c4d8ee7c67559948d20424", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=2 diverse=3 errors=1 \u2192 no rule matched"}
+{"id": "chatcmpl-120071c6c17c1959ca6404fa4b9d3f59", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-2f971ea3e9032ab6905fa6cce50df8c4", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-a3fee3e046c2be35160d336120656dd2", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-c123831a806d9ae6f1df0025cdcd15f7", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-30e2732ef21c5b3281cd9f1867ed6e43", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-babc92a8b3f626f3a374ffae6217b8fb", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-4fa1bfe639d57fd4f2a0f355e833db90", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-80416c695c010a515a8dc1c3ce576403", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-bf16e458a1e6186f2d6aa204f44e35db", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=2 errors=2 \u2192 no rule matched"}
+{"id": "chatcmpl-4a502c5acc0df7d02fb2850a1f1079b9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-18f185a8455b0dd546aa687d5ac90aba", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-03e5608426fbe023638d0677538d3b87", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=5 \u2192 tight_loop==0"}
+{"id": "chatcmpl-fa8e3e3781baa8d9a710b3f22238cbb9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=6 errors=1 \u2192 diverse>=6"}
+{"id": "chatcmpl-3ca220468798186d5f4a2693add21fd2", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-f91e723e3024d23d20e7aec4c5448d87", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=6 \u2192 tight_loop==0"}

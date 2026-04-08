@@ -1,0 +1,50 @@
+{"id": "rigetti__pyquil-1694_54", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=1 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "rigetti__pyquil-1694_55", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=3 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "ReproNim__reproman-508_25", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=5 errors=0 \u2192 no rule matched"}
+{"id": "andialbrecht__sqlparse-231_0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "andialbrecht__sqlparse-231_29", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=3 \u2192 tight_loop==0"}
+{"id": "fairlearn__fairlearn-644_3", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=3 errors=8 \u2192 no rule matched"}
+{"id": "fairlearn__fairlearn-644_13", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=3 errors=3 \u2192 no rule matched"}
+{"id": "fairlearn__fairlearn-644_15", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=8 \u2192 tight_loop==0"}
+{"id": "fairlearn__fairlearn-644_18", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=8 \u2192 tight_loop==0"}
+{"id": "line__line-bot-sdk-python-274_40", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=3 diverse=4 errors=5 \u2192 no rule matched"}
+{"id": "marshmallow-code__apispec-539_26", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "PEtab-dev__libpetab-python-235_14", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=5 \u2192 tight_loop==0"}
+{"id": "Textualize__textual-1427_8", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=3 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "mps-gmbh__hl7-parser-27_11", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=8 \u2192 tight_loop==0"}
+{"id": "mps-gmbh__hl7-parser-27_16", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=2 \u2192 diverse>=6"}
+{"id": "mps-gmbh__hl7-parser-27_19", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=8 \u2192 tight_loop==0"}
+{"id": "fronzbot__blinkpy-401_36", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=2 diverse=3 errors=4 \u2192 no rule matched"}
+{"id": "fronzbot__blinkpy-401_45", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=1 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "datadriventests__ddt-98_16", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=3 \u2192 tight_loop==0"}
+{"id": "graphql-python__graphene-644_35", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=1 errors=2 \u2192 no rule matched"}
+{"id": "pypa__wheel-578_14", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=5 \u2192 tight_loop==0"}
+{"id": "zulip__zulip-terminal-1468_26", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=3 diverse=5 errors=8 \u2192 no rule matched"}
+{"id": "aio-libs__aiosmtpd-106_3", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=0 \u2192 tight_loop==0"}
+{"id": "sphinx-gallery__sphinx-gallery-480_37", "label": "STUCK", "confidence": "high", "reason": "tight_loop=7 diverse=2 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "PyFilesystem__pyfilesystem2-396_0", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "Viatorus__quom-43_13", "label": "STUCK", "confidence": "high", "reason": "tight_loop=2 diverse=1 errors=7 \u2192 error_steps>=7 AND diverse<3"}
+{"id": "adamchainz__time-machine-298_24", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=1 errors=7 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "marshmallow-code__flask-smorest-542_10", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=2 \u2192 tight_loop==0"}
+{"id": "microsoft__electionguard-python-191_5", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=3 diverse=5 errors=8 \u2192 no rule matched"}
+{"id": "planetlabs__planet-client-python-581_6", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=3 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "planetlabs__planet-client-python-581_7", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=5 \u2192 tight_loop==0"}
+{"id": "planetlabs__planet-client-python-581_8", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=2 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pydantic__pydantic-6586_11", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=7 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "seequent__pure_interface-54_6", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=5 diverse=4 errors=8 \u2192 no rule matched"}
+{"id": "seequent__pure_interface-54_35", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "Knio__pynmea2-124_11", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=3 \u2192 tight_loop==0"}
+{"id": "barrust__pyspellchecker-87_33", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=2 \u2192 tight_loop==0"}
+{"id": "barrust__pyspellchecker-87_38", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=1 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "barrust__pyspellchecker-87_87", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=0 \u2192 tight_loop==0"}
+{"id": "devopsspiral__KubeLibrary-124_29", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=4 \u2192 tight_loop==0"}
+{"id": "microsoft__torchgeo-675_20", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=1 errors=3 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pycasbin__sqlalchemy-adapter-34_30", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=2 diverse=3 errors=6 \u2192 no rule matched"}
+{"id": "pylint-dev__astroid-1417_13", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=2 diverse=4 errors=3 \u2192 no rule matched"}
+{"id": "Textualize__textual-2981_19", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=4 \u2192 tight_loop==0"}
+{"id": "astropy__pyvo-357_28", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=1 errors=4 \u2192 no rule matched"}
+{"id": "astropy__pyvo-357_33", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "astropy__pyvo-357_50", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=3 errors=8 \u2192 no rule matched"}
+{"id": "astropy__pyvo-357_54", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=2 diverse=1 errors=4 \u2192 no rule matched"}
+{"id": "cloudpassage__cloudpassage-halo-python-sdk-195_11", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=8 \u2192 tight_loop==0"}
+{"id": "cuthbertLab__music21-314_1", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=5 \u2192 tight_loop==0"}

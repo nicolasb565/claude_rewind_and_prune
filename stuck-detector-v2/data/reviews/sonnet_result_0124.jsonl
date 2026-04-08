@@ -1,0 +1,50 @@
+{"id": "chatcmpl-3f2c9ae68d072ce98047c25f9d843d25", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-8487981bc6f8316ee5d2a185592a2d61", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-3f42ab7daec85c4faf8d577942f0f718", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-75b893e63c55bdb1ea5e1c109066407b", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-7a0dd9d1183cf6330f3ef7c38580e735", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-7fa46acf1e55b717c9d1d67bc2d79ffc", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=2 errors=1 \u2192 tight_loop>=3 and tight_loop>=diverse+2"}
+{"id": "chatcmpl-17abfb91b02e6b517ff5a8e0e7a042e1", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=4 \u2192 tight_loop==0"}
+{"id": "chatcmpl-9348f2722f380c73c81ba07a0867a121", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-f2feb5d972590b354119d2945efcdc60", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-3d6f82052c3ef0c61a510fc2f061d4d2", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-981bd4e7e689cd147f892e7a35413ced", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-44f30aa7b42bcfd7fe3175a6055e6436", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=6 errors=0 \u2192 diverse>=tight_loop+3"}
+{"id": "chatcmpl-86a5e5a87142a9f1d5698e8d2d7c24a8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-17f6b34ad62394b53c3ff687d19fb0c9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-d9e61b8749a22326c0e0e9f51d85f59e", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=6 errors=0 \u2192 diverse>=tight_loop+3"}
+{"id": "chatcmpl-065e206027893f7cd40cf95869d55c47", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=4 \u2192 diverse>=tight_loop+3"}
+{"id": "chatcmpl-ee7d792960792614d6baa7b7157a8745", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-0a2edb1f7f035a027fce3e81fd806b7a", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-2bc40c3373522328dc6ee9524b6547d7", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=5 errors=2 \u2192 diverse>=tight_loop+3"}
+{"id": "chatcmpl-646c76b901f557d503ef03a71c011e7a", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=6 \u2192 tight_loop==0"}
+{"id": "chatcmpl-1181b1ceb9ab08b7437d66c997be2150", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-98e5aa40cc20e19a08c152c7ade7aa7a", "label": "STUCK", "confidence": "high", "reason": "tight_loop=4 diverse=2 errors=1 \u2192 tight_loop>=3 and tight_loop>=diverse+2"}
+{"id": "chatcmpl-425f95f6043ba75b8383c6cd915f4e95", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-4eca82405486839a8656b1269049ef49", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-8ef14559caabb3a6b99f29e9cf260fd9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=4 \u2192 tight_loop==0"}
+{"id": "chatcmpl-254fecf9eb276811886c563b3c880b0a", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-2a9651a2ee422575545c1dcd8415e852", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=4 \u2192 tight_loop==0"}
+{"id": "chatcmpl-5135e804a2d78f555961c5d0ecf9bce7", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=5 \u2192 tight_loop==0"}
+{"id": "chatcmpl-28f4a251867c3bb527d920a060e47cf0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=4 \u2192 tight_loop==0"}
+{"id": "chatcmpl-0a2ff225117a78cbaa88f6ee8e0ea152", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-7f63f0890f05282914202b34c98d0d06", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-179a6225863c98d9e0047d27d7debd87", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=3 diverse=4 errors=1 \u2192 no rule matched"}
+{"id": "chatcmpl-31d1e053338ac7527fca5fb5c8e6e663", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-833221077f90df8f04ed55562f74c1dd", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=4 \u2192 tight_loop==0"}
+{"id": "chatcmpl-1c8c41eb86960b5543c46346ec7301e2", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-8ed871a96e808121526578700387b4fe", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=5 errors=2 \u2192 diverse>=tight_loop+3"}
+{"id": "chatcmpl-82eecc199255aa26cff5a2079cb4d6ae", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=3 errors=1 \u2192 tight_loop>=3 and tight_loop>=diverse+2"}
+{"id": "chatcmpl-84ba51c948ac294463d9eba1a558c4d4", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=4 \u2192 tight_loop==0"}
+{"id": "chatcmpl-4f1578c4c94c097e901b73fdb85b664c", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-47b62330db606267e0915e5914830b76", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=4 diverse=3 errors=1 \u2192 no rule matched"}
+{"id": "chatcmpl-4e35a2e7d5af2b090626d6e9328888e1", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-56872b8badac810bce3dc4a322dec0de", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=5 errors=4 \u2192 diverse>=tight_loop+3"}
+{"id": "chatcmpl-29edf8158de0ee46fa4ed99b74bb8526", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=3 errors=1 \u2192 tight_loop>=3 and tight_loop>=diverse+2"}
+{"id": "chatcmpl-52a422b01f3813d151afc3d429d3f53d", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-a7cc9b001b6cc983a3dc0a05bd43cf19", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=4 \u2192 tight_loop==0"}
+{"id": "chatcmpl-a78f98b50974c65de668a3e3c364b3d0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-0fdefc7e7ee0629f700826c0a75eddbe", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-bc91a1c9c17113804331efc5861a61b0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=5 \u2192 tight_loop==0"}
+{"id": "chatcmpl-d0ec8d9bc07664952186f08c2a078045", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-d56fc717916eea12d780fdd8228e7ef1", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=2 errors=0 \u2192 tight_loop>=3 and tight_loop>=diverse+2"}

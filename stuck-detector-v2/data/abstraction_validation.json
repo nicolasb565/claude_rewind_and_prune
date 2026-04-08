@@ -1,0 +1,22 @@
+{
+  "gate": "Gate 0 - Abstraction Validation",
+  "status": "PASS",
+  "sources_validated": [
+    "adp_coding (nebius)",
+    "openhands (nebius_oh)",
+    "menvdata (claude)"
+  ],
+  "findings": {
+    "stuck_pattern_consistency": "Low since_cmd (0.05-0.08), high out_sim (0.43-1.00), rising cmd_count \u2014 consistent across ADP and OpenHands formats",
+    "productive_pattern_consistency": "High since_cmd (0.80+), neutral out_sim (0.50), low cmd_count \u2014 consistent across all sources",
+    "tool_mapping": "All sources map to same abstract categories. MEnvData lacks 'search' tool (uses bash+grep instead) \u2014 acceptable.",
+    "menvdata_xml_format": "MEnvData uses XML-embedded function calls in content, not tool_calls array. Parser handles both formats."
+  },
+  "parser_issues_fixed": [
+    "MEnvData XML-style function call parsing added to parse_openhands.py"
+  ],
+  "excluded_datasets": {
+    "orca_agentinstruct": "1M+ entries but only 2-4 steps each \u2014 instruction Q&A, not agent trajectories",
+    "mini-coder": "No LICENSE file in ADP repo"
+  }
+}

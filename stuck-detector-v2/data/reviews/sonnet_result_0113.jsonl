@@ -1,0 +1,50 @@
+{"id": "chatcmpl-47d3f248846d0a0b8b53fc8c70100bd1", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-6dfa52b42ce0e52bf57afb9ad38630ff", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-5ac4ae31bafede0ff0bf1cb919a87523", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=3 errors=1 \u2192 no rule matched"}
+{"id": "chatcmpl-52a06fe90169e95406bc2346b7a795f5", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-9de82af00fc5eb457bc5eacf99803875", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=8 errors=0 \u2192 diverse>=tight_loop+3"}
+{"id": "chatcmpl-474a6bd538c474d9a323c787778eeb35", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-c837c3b54082c61bb028bb8a689059e1", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=3 errors=1 \u2192 no rule matched"}
+{"id": "chatcmpl-bad1a9e850a160e6d60b43eaf9ec736e", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=3 errors=2 \u2192 no rule matched"}
+{"id": "chatcmpl-7773ac3459dce151797d2816eec5333d", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-bb7f767d82e736fc86f438d139bbed59", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=1 errors=5 \u2192 no rule matched"}
+{"id": "chatcmpl-a06ebfb0373830122775d56da1c4cd69", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-b2ccd83a814856cf39bcefc7009d39f5", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-a185906ab464181bee1b8533bfc1b713", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=5 errors=3 \u2192 diverse>=tight_loop+3"}
+{"id": "chatcmpl-53790c72401de11dab83dbb32d3023dd", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=5 \u2192 tight_loop==0"}
+{"id": "chatcmpl-bef7d3307e47e5e941b442eb0acdac9d", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-55eb0c371c6eff3e1b737b765c5e8b33", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-d92c2cb1d4128efe0ce43e24f32fcfa7", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-6f5786d1e52696ec3458966015c1bfe0", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-7cbf311939815c7c2cdd7ba8fa0363b4", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=2 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-84f9f2a756b6189bc99491f7b7a64fc8", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=2 diverse=4 errors=6 \u2192 no rule matched"}
+{"id": "chatcmpl-4c1111756ec0efe3fd923191cac41942", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-3e0c9f57ad51eca3ed6dd48f89d02d12", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=1 \u2192 diverse>=tight_loop+3"}
+{"id": "chatcmpl-28fae8812cd9ee8feb83d4e0b0c74488", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=6 \u2192 tight_loop==0"}
+{"id": "chatcmpl-78cb83ef764359c3d077cb299e8c9d22", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=4 \u2192 tight_loop==0"}
+{"id": "chatcmpl-3d60e1fc5bac2996f9131ac5fe8cf6a8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-d19aa02b2b3099ffaac17a4f11bd8244", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-e88ac50891c1ca0368745f817e9a3cf2", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=4 \u2192 tight_loop==0"}
+{"id": "chatcmpl-b9b5d39e9ba6e77b05547a70234d75ff", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-3eb8dc5334b986db6f27061e1e51e570", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-619d8d2a2f94af252ba79125ef95685f", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=4 \u2192 tight_loop==0"}
+{"id": "chatcmpl-cb7d4ead22f3813dd8407c31aed50053", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=6 errors=5 \u2192 diverse>=tight_loop+3"}
+{"id": "chatcmpl-f3892cdcbec78a56c9f38c835d1649ec", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-b6c7de6af33fdec4ad2cb0a251664d0a", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=8 errors=1 \u2192 diverse>=tight_loop+3"}
+{"id": "chatcmpl-b05b9918ab98becaa23cae4d51057cc0", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=3 errors=4 \u2192 no rule matched"}
+{"id": "chatcmpl-863f8132ba893869fb49092ec79ae3a7", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-788045bda3f998e9c1f7c29c77054e73", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=5 \u2192 tight_loop==0"}
+{"id": "chatcmpl-c4a0d4193a634cc7052f146e5f3966e9", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-7b900e74d0758faa6a6d8b2ca687241f", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=4 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-f743718a8344594e1512bf8e24d05d32", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=0 \u2192 tight_loop==0"}
+{"id": "chatcmpl-c396db40972b9c735218a5ba54e469fa", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=2 \u2192 tight_loop==0"}
+{"id": "chatcmpl-b87a03f5b6fcb260aba3e886b45d271e", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-64d5dd97db5f5a26efed8f7706a5d789", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-c7560f5b607ea62180c3148ab51d98a8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=6 \u2192 tight_loop==0"}
+{"id": "chatcmpl-0ce095a387e7cf2cdb763d7d96ea373f", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=3 \u2192 tight_loop==0"}
+{"id": "chatcmpl-f2bb747f1fc8dee997349c414ca8c6d8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-def8974937c7ee4ff6ccb524951b8c83", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-4d139c2b7cecb35839a9c04d27f99290", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=3 diverse=6 errors=2 \u2192 diverse>=tight_loop+3"}
+{"id": "chatcmpl-9c577bfa55079fcec575886a187d33bd", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=1 \u2192 tight_loop==0"}
+{"id": "chatcmpl-3214cdbcbb260f2eb0a86a32174a4add", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=2 diverse=4 errors=2 \u2192 no rule matched"}
+{"id": "chatcmpl-4cfeca28868b6a4e182b7d39cb0d12e1", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=2 \u2192 tight_loop==0"}

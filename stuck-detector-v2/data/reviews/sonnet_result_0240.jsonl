@@ -1,0 +1,50 @@
+{"id": "hynek__structlog-463_12", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=3 \u2192 tight_loop==0"}
+{"id": "mie-lab__trackintel-408_42", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=7 errors=2 \u2192 diverse>=6"}
+{"id": "mie-lab__trackintel-408_53", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "mozman__svgwrite-109_34", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=5 diverse=4 errors=7 \u2192 no rule matched"}
+{"id": "pylint-dev__astroid-1903_49", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=4 \u2192 tight_loop==0"}
+{"id": "pvlib__pvlib-python-1349_4", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=2 \u2192 tight_loop==0"}
+{"id": "pvlib__pvlib-python-1349_7", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=2 \u2192 tight_loop==0"}
+{"id": "pvlib__pvlib-python-1349_20", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=2 \u2192 tight_loop==0"}
+{"id": "pvlib__pvlib-python-1349_21", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=2 \u2192 tight_loop==0"}
+{"id": "pypa__setuptools_scm-573_8", "label": "STUCK", "confidence": "high", "reason": "tight_loop=7 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pypa__setuptools_scm-573_61", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=1 errors=2 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pypa__setuptools_scm-573_64", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pypa__setuptools_scm-573_67", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "redis__redis-py-2583_14", "label": "STUCK", "confidence": "high", "reason": "tight_loop=2 diverse=2 errors=7 \u2192 error_steps>=7 AND diverse<3"}
+{"id": "redis__redis-py-2583_26", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=1 errors=5 \u2192 no rule matched"}
+{"id": "reframe-hpc__reframe-2613_6", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=5 errors=5 \u2192 tight_loop==0"}
+{"id": "PyPSA__PyPSA-784_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=6 errors=5 \u2192 diverse>=6"}
+{"id": "PyPSA__PyPSA-784_16", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=3 \u2192 tight_loop==0"}
+{"id": "tophat__syrupy-672_42", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=4 \u2192 tight_loop==0"}
+{"id": "iterative__dvc-2478_0", "label": "STUCK", "confidence": "high", "reason": "tight_loop=7 diverse=2 errors=0 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "mathLab__EZyRB-213_9", "label": "STUCK", "confidence": "high", "reason": "tight_loop=6 diverse=1 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pydantic__pydantic-4568_36", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=2 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "tianocore__edk2-pytool-extensions-125_39", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=7 \u2192 tight_loop==0"}
+{"id": "asottile__astpretty-41_6", "label": "STUCK", "confidence": "high", "reason": "tight_loop=3 diverse=1 errors=5 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "coverahealth__dataspec-83_25", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=3 \u2192 tight_loop==0"}
+{"id": "encode__typesystem-16_5", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=1 errors=6 \u2192 tight_loop==0"}
+{"id": "encode__typesystem-16_50", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "isi-vista__adam-463_34", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=3 \u2192 tight_loop==0"}
+{"id": "spacetelescope__gwcs-439_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=3 diverse=7 errors=6 \u2192 diverse>=6"}
+{"id": "d-Rickyy-b__pyBrematic-30_6", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "e2nIEE__pandapipes-501_17", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=1 \u2192 tight_loop==0"}
+{"id": "e2nIEE__pandapipes-501_37", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=3 errors=0 \u2192 tight_loop==0"}
+{"id": "iterative__dvc-9353_19", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=6 errors=8 \u2192 diverse>=6"}
+{"id": "mwouts__jupytext-368_0", "label": "STUCK", "confidence": "high", "reason": "tight_loop=5 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "mwouts__jupytext-368_26", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "pydantic__pydantic-4653_8", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=6 errors=5 \u2192 diverse>=6"}
+{"id": "repobee__repobee-457_3", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=4 \u2192 tight_loop==0"}
+{"id": "scverse__scanpy-2859_12", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=8 errors=6 \u2192 tight_loop==0"}
+{"id": "streamlink__streamlink-2102_31", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=6 errors=4 \u2192 tight_loop==0"}
+{"id": "ReviewNB__treon-25_23", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=1 diverse=8 errors=5 \u2192 diverse>=6"}
+{"id": "ReviewNB__treon-25_52", "label": "STUCK", "confidence": "high", "reason": "tight_loop=7 diverse=3 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "hynek__structlog-586_14", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=2 diverse=5 errors=6 \u2192 diverse>=tight+3"}
+{"id": "oauthlib__oauthlib-771_31", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "oauthlib__oauthlib-771_44", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=7 errors=2 \u2192 tight_loop==0"}
+{"id": "oauthlib__oauthlib-771_57", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=4 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "oauthlib__oauthlib-771_65", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=10 errors=6 \u2192 tight_loop==0"}
+{"id": "ramonhagenaars__jsons-161_6", "label": "PRODUCTIVE", "confidence": "high", "reason": "tight_loop=0 diverse=9 errors=4 \u2192 tight_loop==0"}
+{"id": "websocket-client__websocket-client-929_25", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=8 \u2192 tight_loop>=3 AND tight>=diverse+2 AND error_steps>=7 AND diverse<3"}
+{"id": "websocket-client__websocket-client-929_37", "label": "STUCK", "confidence": "high", "reason": "tight_loop=8 diverse=1 errors=6 \u2192 tight_loop>=3 AND tight>=diverse+2"}
+{"id": "websocket-client__websocket-client-929_70", "label": "UNCLEAR", "confidence": "low", "reason": "tight_loop=1 diverse=1 errors=6 \u2192 no rule matched"}
