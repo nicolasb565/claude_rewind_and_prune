@@ -246,12 +246,79 @@ AI coding agents routinely waste 30-50% of their token budget going in circles o
 
 This last point is why it should be built into the model or API. An inference-layer monitor could access attention patterns, internal confidence signals, and the full generation state — not just the finished messages. It could intervene at the token level before a stuck episode fully forms, rather than waiting for a complete turn to analyze.
 
+## CNN Stuck Detector v2 (`stuck-detector-v2/`)
+
+A language-agnostic CNN trained on 12,477 trajectories from 6 public SWE-bench datasets, replacing the 151-window LogReg classifier. Uses cycle-detection features (CRC32 hashed commands/files, Jaccard output similarity) that generalize across programming languages, agent scaffolds, and model families.
+
+### Architecture
+
+3,133-parameter CNN with two parallel Conv1d branches (kernel 3 + kernel 5), tool embedding, and window-level aggregate features. Input: 10-step windows of 19 features each + 6 window features. Output: stuck probability.
+
+### Training Pipeline
+
+```
+6 datasets (MEnvData, Nebius OH, Nemotron, SWE-Smith, SWE-Gym, Nebius ADP)
+    │ 330K+ trajectories available
+    ▼
+Curate 12,477 balanced pool (67% strong, 19% medium, 14% weak models)
+    │
+    ▼
+Abstract to language-agnostic features (CRC32 hashing, Jaccard similarity)
+    │
+    ▼
+Label via Sonnet with precomputed counts (496 STUCK, 11,788 PRODUCTIVE)
+    │
+    ▼
+Window into 118K 10-step chunks (stride 5)
+    │
+    ▼
+Train 3.1K param CNN (30.3x data ratio, class-balanced loss)
+```
+
+### Results
+
+| Metric | Value |
+|---|---|
+| Precision (at recall >= 70%) | 77.3% |
+| Recall | 77.9% |
+| F1 | 0.776 |
+| Threshold | 0.94 |
+| Weights size | 68 KB JSON |
+
+### Feature Importance (ablation)
+
+| Feature | Impact when removed |
+|---|---|
+| `output_length` | -5.0% (critical) |
+| `steps_since_same_cmd` | -4.9% (critical) |
+| `thinking_length` | -4.0% (critical) |
+| `tool_count_in_window` | -3.5% (critical) |
+| `step_index_norm` | -2.9% (helpful) |
+| `tool_embed` | -2.8% (helpful) |
+| `false_start`, `strategy_change` | ~0% (neutral) |
+
+### Datasets Used
+
+| Dataset | License | Trajectories | Model | Role |
+|---|---|---|---|---|
+| [ernie-research/MEnvData-SWE-Trajectory](https://huggingface.co/datasets/ernie-research/MEnvData-SWE-Trajectory) | Apache-2.0 | 3,918 | Claude Sonnet | Strong, multi-language |
+| [nebius/SWE-rebench-openhands-trajectories](https://huggingface.co/datasets/nebius/SWE-rebench-openhands-trajectories) | CC-BY-4.0 | 3,000 (sampled) | Qwen3-Coder-480B | Strong |
+| [nvidia/Nemotron-SWE-v1](https://huggingface.co/datasets/nvidia/Nemotron-SWE-v1) | CC-BY-4.0 | 1,500 (sampled) | Qwen3-Coder-480B | Strong |
+| [neulab/agent-data-collection](https://huggingface.co/datasets/neulab/agent-data-collection) (swe-smith) | MIT | 1,500 (sampled) | Qwen 2.5 Coder 32B | Medium |
+| neulab/agent-data-collection (swe-gym) | MIT | 491 | OpenHands | Medium |
+| neulab/agent-data-collection (nebius) | CC-BY-4.0 | 1,717 (sampled) | Llama 70B, Qwen 72B | Weak |
+
+### Labeling Pipeline
+
+Trajectories were labeled by Sonnet agents applying deterministic rules on precomputed feature counts (tight-loop steps, diverse steps, error steps). Rules iterated through 5 rounds of prompt tuning with Opus sanity checks. Updated rules include error-based STUCK detection (error_steps >= 7 AND diverse < 3) and `>=` threshold fix recommended by Opus review.
+
 ## Next Steps
 
-1. Collect more diverse productive training data (slow multi-step successful debugging sessions)
-2. LoRA fine-tune an open source model (Qwen 3.5 Coder) on context management behaviors
-3. Benchmark on SWE-bench with the proxy
-4. Explore lightweight monitor model architecture (speculative-decoding-style parallel inference)
+1. Try Stage 2 CNN (25K params) if precision needs improvement
+2. JS forward pass implementation and proxy integration
+3. LoRA fine-tune an open source model (Qwen 3.5 Coder) on context management behaviors
+4. Benchmark CNN vs LogReg on the 13-task suite
+5. Explore lightweight monitor model architecture (speculative-decoding-style parallel inference)
 
 ## License
 
