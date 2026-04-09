@@ -20,3 +20,7 @@ proxy/cnn_checkpoint.pt
 
 # Haiku results (superseded by Sonnet)
 data/reviews/haiku_result_*.jsonl
+
+# Large nlile data files (>100MB)
+data/nlile_claude_code_windows.jsonl
+data/nlile_labeled_windows.jsonl
