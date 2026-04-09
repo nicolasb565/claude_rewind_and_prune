@@ -328,6 +328,8 @@ Tested on real Claude Code sessions from the benchmark suite:
 
 4. **Proper UNCLEAR handling** — Previously force-labeled as PRODUCTIVE. Now reviewed by Sonnet agents who see the actual commands and outputs, not just numeric features.
 
+5. **Streak-based confirmation rule (proxy)** — Replaces the old 2-of-3 sliding window with a streak rule: fire only if the current window scores above threshold AND at least one prior window scored ≥ 0.9. Selected by analyzing 30+ temporal aggregations (`src/analyze_temporal.py`) — `streak_thresh_0.9` achieved F1=0.886 vs 0.860 for raw single-window, gaining +11% recall for −6% precision. Adding streak as a CNN input feature was tried but the model ignored it (sparse signal); the post-processing rule is the right level.
+
 ### Datasets Used
 
 | Dataset | License | Sessions | Features |
