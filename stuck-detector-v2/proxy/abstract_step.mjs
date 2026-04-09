@@ -42,53 +42,6 @@ const CIRCULAR_RE = /\b(try again|let me try|one more time|retry|attempt again)\
 
 const MAX_OUTPUT_LINES = 100;
 
-const SILENT_CMD_RE = /^(cd|pushd|popd|source|export|set|unset|alias|ulimit|umask)\b/;
-const FILE_EXT_RE = /\.[a-zA-Z]{1,5}$/;
-const FLAG_RE = /^-/;
-const REDIR_RE = /^[012]?[><]|^2>&1$/;
-
-/**
- * Extract command signature from a bash command for semantic hashing.
- * Must match Python normalize_bash_command() in abstract_trajectory.py.
- */
-function normalizeBashCommand(cmd) {
-  if (!cmd) return "";
-
-  // Split on && and ; only (pipe is not a separate command)
-  const parts = cmd.trim().split(/\s*(?:&&|;)\s*/);
-
-  // Drop silent commands
-  const realParts = parts.filter(p => p.trim() && !SILENT_CMD_RE.test(p.trim()));
-  if (realParts.length === 0) return cmd.trim().slice(0, 50);
-
-  // Take first real command, strip pipe suffix
-  const firstCmd = realParts[0].trim().split(/\s*\|\s*/)[0];
-  const tokens = firstCmd.trim().split(/\s+/);
-  if (tokens.length === 0) return cmd.trim().slice(0, 50);
-
-  // Base command name (strip path)
-  const command = tokens[0];
-  const slashIdx = command.lastIndexOf("/");
-  const baseCmd = slashIdx >= 0 ? command.slice(slashIdx + 1) : command;
-
-  // Extract file-like arguments
-  const files = [];
-  for (let i = 1; i < tokens.length; i++) {
-    const tok = tokens[i];
-    if (REDIR_RE.test(tok)) continue;
-    if (FLAG_RE.test(tok)) continue;
-    if (FILE_EXT_RE.test(tok) || tok.includes("/")) {
-      const si = tok.lastIndexOf("/");
-      files.push(si >= 0 ? tok.slice(si + 1) : tok);
-    }
-  }
-
-  if (files.length > 0) {
-    return `${baseCmd}:${files.sort().slice(0, 3).join(",")}`;
-  }
-  return baseCmd;
-}
-
 function hash(str) {
   if (!str) return null;
   return crc32(Buffer.from(str));
@@ -174,8 +127,7 @@ export class StuckDetectorState {
     const filePath = input?.file_path || input?.path || null;
 
     const fileHash = hash(filePath);
-    const normalizedCmd = tool === "bash" ? normalizeBashCommand(cmd) : cmd;
-    const cmdHash = hash(normalizedCmd);
+    const cmdHash = hash(cmd);
     const outputSet = normalizeToSet(output);
     const outputSim = jaccard(outputSet, this.outputHistory.get(cmdHash) || null);
 

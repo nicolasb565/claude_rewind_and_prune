@@ -15,74 +15,6 @@ MAX_OUTPUT_LINES = 100
 TOOL_NAMES = ['bash', 'edit', 'view', 'search', 'create', 'submit', 'other']
 TOOL_TO_IDX = {t: i for i, t in enumerate(TOOL_NAMES)}
 
-# --- Command normalization ---
-
-_SILENT_CMD = re.compile(r'^(cd|pushd|popd|source|export|set|unset|alias|ulimit|umask)\b')
-_FILE_EXT = re.compile(r'\.[a-zA-Z]{1,5}$')
-_FLAG = re.compile(r'^-')
-_REDIR = re.compile(r'^[012]?[><]|^2>&1$')
-_BASENAME_RE = re.compile(r'[^/]+$')
-
-
-def normalize_bash_command(cmd):
-    """Extract command signature from a bash command for semantic hashing.
-
-    'cd build && ./gcc/xgcc -B./gcc -O2 ../test.c -o test 2>&1 | tail -5'
-    → 'xgcc:test.c'
-
-    Same logic must be replicated in JS (abstract_step.mjs).
-    """
-    if not cmd:
-        return ''
-
-    # Split on && and ; only (pipe output is not a separate command)
-    parts = re.split(r'\s*(?:&&|;)\s*', cmd.strip())
-
-    # Drop silent commands (cd, source, export, etc.)
-    real_parts = [p for p in parts if p.strip() and not _SILENT_CMD.match(p.strip())]
-    if not real_parts:
-        return cmd.strip()[:50]  # fallback
-
-    # Take the first real command (most meaningful — later parts are often just ./test)
-    # Strip pipe suffix (| head, | tail, | grep are output formatting)
-    first_cmd = re.split(r'\s*\|\s*', real_parts[0].strip())[0]
-    tokens = first_cmd.strip().split()
-    if not tokens:
-        return cmd.strip()[:50]
-
-    # Extract base command name (strip path)
-    command = tokens[0]
-    m = _BASENAME_RE.search(command)
-    base_cmd = m.group(0) if m else command
-
-    # Extract file-like arguments (have extensions or contain /)
-    files = []
-    for tok in tokens[1:]:
-        if _REDIR.match(tok):
-            continue
-        if _FLAG.match(tok):
-            continue
-        # Check if it looks like a file
-        if _FILE_EXT.search(tok) or '/' in tok:
-            # Basename only for consistency
-            fm = _BASENAME_RE.search(tok)
-            files.append(fm.group(0) if fm else tok)
-
-    if files:
-        return f"{base_cmd}:{','.join(sorted(files[:3]))}"
-    return base_cmd
-
-
-def normalize_search_command(cmd):
-    """Extract search signature: pattern + target."""
-    if not cmd:
-        return ''
-    # For grep/search commands, the pattern and target file matter
-    # cmd is usually like: grep({"pattern": "foo", "path": "bar"})
-    # or just: grep -rn "foo" src/
-    return cmd[:100]  # keep as-is for non-bash tools
-
-
 # --- Output normalization ---
 
 def normalize_to_set(output):
@@ -201,13 +133,9 @@ def abstract_trajectory(parsed_steps):
         output = step.get('output', '')
         thinking = step.get('thinking', '')
 
-        # Hash file and command (normalize bash commands for semantic matching)
+        # Hash file and command
         file_hash = zlib.crc32(file_path.encode()) if file_path else None
-        if tool == 'bash':
-            normalized_cmd = normalize_bash_command(cmd)
-        else:
-            normalized_cmd = cmd
-        cmd_hash = zlib.crc32(normalized_cmd.encode()) if normalized_cmd else None
+        cmd_hash = zlib.crc32(cmd.encode()) if cmd else None
 
         # Output normalization and similarity
         output_set = normalize_to_set(output)
