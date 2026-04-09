@@ -4,12 +4,12 @@ Research into detecting when Claude Code goes in circles — a 2,621-parameter C
 
 ## The Problem
 
-AI coding agents routinely waste 30-50% of their token budget going in circles on hard tasks:
+When AI coding agents get stuck on a hard task, they can burn a significant portion of their token budget going in circles:
 - Re-running the same failing command with minor variations
 - Cycling through the same files without making progress
 - Generating "summary" text that rationalizes not having solved the problem
 
-The model has no mechanism to recognize circular reasoning or backtrack from a failed approach. A lightweight external monitor can.
+On our 13-task benchmark, the worst stuck cases burned 10× more time than a normal solve (e.g. rbtree went from 671s stuck to 45s with a nudge). Stuck episodes are not the common case — most sessions are productive — but when they happen they dominate the cost, and the agent has no built-in mechanism to recognize circular reasoning or backtrack. A lightweight external monitor can.
 
 ## HTTP Proxy (`stuck-detector-v2/proxy/`)
 
