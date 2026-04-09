@@ -248,7 +248,7 @@ This last point is why it should be built into the model or API. An inference-la
 
 ## CNN Stuck Detector v2 (`stuck-detector-v2/`)
 
-A language-agnostic CNN trained on 12,477 trajectories from 6 public SWE-bench datasets, replacing the 151-window LogReg classifier. Uses cycle-detection features (CRC32 hashed commands/files, Jaccard output similarity) that generalize across programming languages, agent scaffolds, and model families.
+A language-agnostic CNN trained on 84K+ windows from Claude Code sessions (nlile + DataClaw datasets), replacing both the LogReg classifier and the earlier SWE-bench-only CNN. Key breakthrough: `cmd_semantic_key` extracts `base_command:target_file` from bash commands for cross-project command matching.
 
 ### Architecture
 
@@ -257,88 +257,109 @@ A language-agnostic CNN trained on 12,477 trajectories from 6 public SWE-bench d
 ### Training Pipeline
 
 ```
-6 datasets (MEnvData, Nebius OH, Nemotron, SWE-Smith, SWE-Gym, Nebius ADP)
-    │ 330K+ trajectories available
-    ▼
-Curate 12,477 balanced pool (67% strong, 19% medium, 14% weak models)
+Claude Code sessions (nlile 16.8K sessions + DataClaw 136 sessions)
     │
     ▼
-Abstract to language-agnostic features (CRC32 hashing, Jaccard similarity)
+Parse with cmd_semantic_key: 'cd build && make -j8 | tail' → 'make'
     │
     ▼
-Label via Sonnet with precomputed counts (496 STUCK, 11,788 PRODUCTIVE)
+Abstract to features (CRC32 of semantic key, Jaccard output similarity)
     │
     ▼
-Window into 118K 10-step chunks (stride 5)
-    │
+Deterministic labeling (STUCK/PRODUCTIVE/UNCLEAR rules)
+    │  82,128 STUCK+PRODUCTIVE windows
     ▼
-Train 3.1K param CNN (30.3x data ratio, class-balanced loss)
+UNCLEAR windows → Sonnet agent review with raw text
+    │  4,074 windows reviewed (58% complete, ongoing)
+    │  2,191 resolved (STUCK: 1,016, PRODUCTIVE: 1,175)
+    ▼
+Train 3.1K param CNN (class-balanced loss, pos_weight=41:1)
 ```
 
-### Results (SWE-bench test set)
+### Results (Claude Code test set)
 
-| Metric | Value |
-|---|---|
-| Precision (at t=0.60) | 59.6% |
-| Recall | 89.2% |
-| F1 | 0.72 |
-| Threshold | 0.60 |
-| Weights size | 68 KB JSON |
+| Metric | Old CNN (SWE-bench) | New CNN (Claude Code) |
+|---|---|---|
+| Precision | 77.3% | **81.7%** |
+| Recall | 77.9% | **86.4%** |
+| F1 | 0.776 | **0.840** |
+| Threshold | 0.94 | 0.94 |
+| False positives | 184 | **84** (-54%) |
+
+### Benchmark Validation (CNN on proxy-OFF sessions)
+
+Tested on real Claude Code sessions from the benchmark suite:
+
+| Task | Steps | CNN fires? | Correct? |
+|---|---|---|---|
+| 03_llvm_bug | 160 | 2/31 windows | Yes — known stuck |
+| 06_django_bug | 45-50 | 3/8-9 windows | Yes — known stuck |
+| 32_beast_bug | 32-59 | 2-5 windows | Partially — stuck on build errors |
+| 01_gcc_bug | 20-33 | clean | Correct |
+| 07_react_bug | 18-20 | clean | Correct |
+| 10_linux_usb_bug | 10-12 | clean | Correct |
+| 12_linux_fs_bug | 22-25 | clean | Correct |
+| 24_rbtree_bug | 6-39 | clean | Correct |
+| 33_geometry_feature | 54-55 | clean | Correct |
+
+**Held-out tasks (never in training):**
+
+| Task | CNN fires? | Correct? | Old LogReg |
+|---|---|---|---|
+| 40_django_jsonfield | clean | Correct | n/a |
+| 41_django_keytexttransform | clean | Correct | +43% tokens regression |
+| 42_lapack_uninit | clean | Correct | n/a |
+| 43_gcc_tbaa | clean (0.60) | Correct | +200% tokens regression |
+| 44_llvm_arith | **fires** (2/2) | **FP** — test iteration | +79% tokens regression |
+| 45_llvm_delete | clean | Correct | n/a |
+
+**Key improvement:** The old LogReg caused +38% token regression on held-out tasks (fired on gcc_tbaa + django_keytexttransform). The new CNN has 1 held-out FP (44_llvm_arith) — the CNN confuses productive build/test iteration with stuck loops. Remaining FPs: 08_express (test iteration), 30_lapack (rapid edits), would be filtered by 2/3 sliding window confirmation.
+
+### Key Innovations
+
+1. **`cmd_semantic_key`** — Extracts `base_command:target_file` from bash commands. `cd build && ./gcc/xgcc -O2 test.c | tail` → `xgcc:test.c`. Makes command repetition features work across projects.
+
+2. **Three-tier labeling** — Deterministic rules for clear STUCK/PRODUCTIVE, Sonnet agent review for UNCLEAR (with raw text: commands, output snippets, thinking), Opus escalation for hardest cases.
+
+3. **Fixed DataClaw parser** — Previous parser missed all outputs, errors, and thinking blocks. Fixed parser extracts tool outputs and thinking from woctordho format.
+
+4. **Proper UNCLEAR handling** — Previously force-labeled as PRODUCTIVE. Now reviewed by Sonnet agents who see the actual commands and outputs, not just numeric features.
 
 ### Datasets Used
 
-| Dataset | License | Trajectories | Model | Role |
-|---|---|---|---|---|
-| [ernie-research/MEnvData-SWE-Trajectory](https://huggingface.co/datasets/ernie-research/MEnvData-SWE-Trajectory) | Apache-2.0 | 3,918 | Claude Sonnet | Strong, multi-language |
-| [nebius/SWE-rebench-openhands-trajectories](https://huggingface.co/datasets/nebius/SWE-rebench-openhands-trajectories) | CC-BY-4.0 | 3,000 (sampled) | Qwen3-Coder-480B | Strong |
-| [nvidia/Nemotron-SWE-v1](https://huggingface.co/datasets/nvidia/Nemotron-SWE-v1) | CC-BY-4.0 | 1,500 (sampled) | Qwen3-Coder-480B | Strong |
-| [neulab/agent-data-collection](https://huggingface.co/datasets/neulab/agent-data-collection) (swe-smith) | MIT | 1,500 (sampled) | Qwen 2.5 Coder 32B | Medium |
-| neulab/agent-data-collection (swe-gym) | MIT | 491 | OpenHands | Medium |
-| neulab/agent-data-collection (nebius) | CC-BY-4.0 | 1,717 (sampled) | Llama 70B, Qwen 72B | Weak |
-
-### Feature Ablation — Cross-Distribution Analysis
-
-Ablation on both SWE-bench precision and Claude Code stuck/productive separation revealed that three features have **inverted signals** across distributions:
-
-| Feature | SWE-bench impact | Claude Code impact | Action |
+| Dataset | License | Sessions | Features |
 |---|---|---|---|
-| `steps_since_same_cmd` | -4.9% (critical for SWE-bench) | +8.9% (inverted — hurts CC) | **Zeroed** |
-| `steps_since_same_file` | -0.9% (neutral) | +6.6% (inverted — hurts CC) | **Zeroed** |
-| `file_count_in_window` | 0% (neutral) | +6.2% (inverted — hurts CC) | **Zeroed** |
-| `steps_since_same_tool` | 0% (neutral) | -14.7% (helps CC most) | Kept |
-| `thinking_length` | -4.0% (critical) | -11.9% (helps CC) | Kept |
-| `tool_count_in_window` | -3.5% (critical) | -10.6% (helps CC) | Kept |
+| [nlile/misc-merged](https://huggingface.co/datasets/nlile/misc-merged) | Apache-2.0 | 16,841 | outputs, files, no thinking |
+| [DataClaw](https://huggingface.co/datasets/DataClaw) (woctordho) | Apache-2.0 | 136 | outputs, files, thinking |
 
-**Root cause:** In SWE-bench, low `since_cmd` means tight command loops (stuck). In Claude Code, low `since_cmd` means the agent efficiently reuses familiar commands (productive). The same CRC32 feature has opposite meaning across scaffolds. Zeroing these 3 features eliminates the cross-distribution conflict.
+### Feature Analysis
 
-### Claude Code Validation
+15 continuous features + tool embedding + 6 window features. Feature importance after retraining on Claude Code data:
 
-Tested on real Claude Code sessions from the benchmark suite (proxy-OFF runs):
-
-| Task | Kind | Max Score | Fires at 0.60? | LogReg impact |
-|---|---|---|---|---|
-| 02-gcc-bug | STUCK | 0.49 | No (close) | -47% time |
-| 03-llvm-bug | STUCK | 0.52 | No (close) | +18% time |
-| 06-django-bug | STUCK | 0.48 | No (close) | -47% time |
-| 24-rbtree-bug | STUCK | 0.22 | No | -93% time |
-| 01-gcc-bug | PRODUCTIVE | 0.24 | No | -4% time |
-| 08-express-bug | PRODUCTIVE | 0.06 | No | -14% time |
-| 43-gcc-tbaa | HELD-OUT | 0.07 | No | +200% tokens |
-| 44-llvm-arith | HELD-OUT | 0.39 | No | +79% tokens |
-
-**Key findings:**
-1. Stuck tasks correctly rank higher (0.48-0.52) than productive tasks (0.06-0.24)
-2. Held-out tasks 43 and 44 (where LogReg caused +200% and +79% token regressions) now score 0.07 and 0.39 — well below threshold
-3. Scores don't reach the 0.60 threshold yet — the CNN correctly separates but needs a lower threshold or additional signal to fire
+| Feature | Signal | Notes |
+|---|---|---|
+| `steps_since_same_cmd` | **Core** | With cmd_semantic_key, correctly detects command repetition |
+| `cmd_count_in_window` | **Core** | How often this command appeared |
+| `output_similarity` | **Core** | Jaccard on output lines — same result = stuck |
+| `is_error` | Moderate | Errors in loops = stuck, errors alone = debugging |
+| `output_length` | Moderate | Log of output line count |
+| `step_index_norm` | Moderate | Position in trajectory |
+| `tool_count_in_window` | Moderate | Tool repetition frequency |
+| `thinking_length` | Sparse | Only in DataClaw (2.5% of data) |
+| `self_similarity` | Sparse | Only in DataClaw |
+| `false_start` | Sparse | Only in DataClaw |
+| `strategy_change` | Sparse | Only in DataClaw |
+| `circular_lang` | Sparse | Only in DataClaw |
 
 **JS forward pass verified:** Pure JS inference matches Python with max diff 3.8e-8 across 100 test vectors. No Node.js dependencies beyond `node:zlib` for CRC32.
 
 ## Next Steps
 
-1. Add Claude Code sessions to CNN training data to bridge the distribution gap
-2. Benchmark CNN vs LogReg on the 13-task suite
-3. LoRA fine-tune an open source model (Qwen 3.5 Coder) on context management behaviors
-4. Explore lightweight monitor model architecture (speculative-decoding-style parallel inference)
+1. Finish labeling remaining 1,700 UNCLEAR windows with Sonnet agents
+2. Retrain CNN with complete labeled data (expect to cross 85% precision target)
+3. Run 5-run benchmark for statistical significance
+4. Address remaining FP pattern: productive build/test iteration misclassified as stuck
+5. Explore lightweight monitor model architecture (speculative-decoding-style parallel inference)
 
 ## License
 

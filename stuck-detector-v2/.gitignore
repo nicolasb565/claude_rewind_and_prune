@@ -24,3 +24,17 @@ data/reviews/haiku_result_*.jsonl
 # Large nlile data files (>100MB)
 data/nlile_claude_code_windows.jsonl
 data/nlile_labeled_windows.jsonl
+
+# Large intermediate/reproducible data
+data/cc_labeled.jsonl
+data/cc_unclear_windows.jsonl
+data/cc_unclear_batches/
+data/cc_unclear_small/
+data/claude_code_labeled.jsonl
+data/claude_code_all_windows.jsonl
+data/dataclaw_windows.jsonl
+data/cc_train.jsonl
+data/cc_test.jsonl
+data/dc_train.jsonl
+data/dc_test.jsonl
+data/reviews_nlile/
