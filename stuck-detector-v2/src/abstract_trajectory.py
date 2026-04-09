@@ -166,35 +166,6 @@ def count_in(value, history):
     return sum(1 for h in history if h == value)
 
 
-def cmd_to_tokens(cmd):
-    """Tokenize a command for Jaccard similarity. Strip paths to basenames."""
-    if not cmd:
-        return frozenset()
-    tokens = set()
-    for tok in cmd.split():
-        # Strip path to basename
-        if '/' in tok:
-            tok = tok.rsplit('/', 1)[-1]
-        if tok:
-            tokens.add(tok.lower())
-    return frozenset(tokens)
-
-
-def max_cmd_jaccard(current_tokens, history, lookback=10):
-    """Max Jaccard similarity between current cmd tokens and recent commands."""
-    if not current_tokens or not history:
-        return 0.0
-    best = 0.0
-    for prev_tokens in history[-lookback:]:
-        if not prev_tokens:
-            continue
-        union = current_tokens | prev_tokens
-        if not union:
-            continue
-        sim = len(current_tokens & prev_tokens) / len(union)
-        if sim > best:
-            best = sim
-    return best
 
 
 # --- Main abstraction ---
@@ -217,7 +188,6 @@ def abstract_trajectory(parsed_steps):
     tool_history = []
     file_hash_history = []
     cmd_hash_history = []
-    cmd_tokens_history = []  # list of token sets for Jaccard
     output_history = {}  # cmd_hash -> frozenset
     prev_thinking = None
 
@@ -238,10 +208,6 @@ def abstract_trajectory(parsed_steps):
         else:
             normalized_cmd = cmd
         cmd_hash = zlib.crc32(normalized_cmd.encode()) if normalized_cmd else None
-
-        # Command Jaccard similarity (continuous, against recent commands)
-        cmd_tokens = cmd_to_tokens(cmd)
-        cmd_jacc = max_cmd_jaccard(cmd_tokens, cmd_tokens_history)
 
         # Output normalization and similarity
         output_set = normalize_to_set(output)
@@ -278,7 +244,6 @@ def abstract_trajectory(parsed_steps):
             'circular_lang': bool(CIRCULAR_PATTERNS.search(thinking)) if thinking else False,
             'thinking_length': math.log1p(len(thinking)),
             'self_similarity': word_overlap_similarity(thinking, prev_thinking),
-            'cmd_jaccard': cmd_jacc,
         }
         abstract_seq.append(abstract_step)
 
@@ -286,7 +251,6 @@ def abstract_trajectory(parsed_steps):
         tool_history.append(tool)
         file_hash_history.append(file_hash)
         cmd_hash_history.append(cmd_hash)
-        cmd_tokens_history.append(cmd_tokens)
         if cmd_hash is not None:
             output_history[cmd_hash] = output_set
         prev_thinking = thinking

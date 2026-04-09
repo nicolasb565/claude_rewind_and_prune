@@ -19,7 +19,7 @@ MODEL_DIR = 'proxy'
 # Feature dimensions
 NUM_TOOLS = 7  # bash, edit, view, search, create, submit, other
 TOOL_EMBED_DIM = 4
-NUM_CONTINUOUS = 15  # all non-categorical step features (added cmd_jaccard)
+NUM_CONTINUOUS = 15  # all non-categorical step features
 STEP_DIM = TOOL_EMBED_DIM + NUM_CONTINUOUS  # 19
 WINDOW_FEAT_DIM = 6
 WINDOW_SIZE = 10
