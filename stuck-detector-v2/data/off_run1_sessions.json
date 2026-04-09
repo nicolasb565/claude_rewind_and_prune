@@ -1,0 +1,13 @@
+{
+  "06_django_bug": "/home/nicolas/.claude/projects/-home-nicolas-source-classifier-repos-worktrees-06-django-bug/21a1664f-f53c-4324-957e-43150a051289.jsonl",
+  "30_lapack_bug": "/home/nicolas/.claude/projects/-home-nicolas-source-classifier-repos-worktrees-30-lapack-bug/71879804-0104-4c51-8ed9-abc9408d1b60.jsonl",
+  "03_llvm_bug": "/home/nicolas/.claude/projects/-home-nicolas-source-classifier-repos-worktrees-03-llvm-bug/27ab8ea5-2f79-4735-a2a0-f8575e5f74a6.jsonl",
+  "01_gcc_bug": "/home/nicolas/.claude/projects/-home-nicolas-source-classifier-repos-worktrees-01-gcc-bug/c94536d9-c3ad-41e3-880d-053af9e564d1.jsonl",
+  "07_react_bug": "/home/nicolas/.claude/projects/-home-nicolas-source-classifier-repos-worktrees-07-react-bug/06a1bc9e-cc43-4c78-b9c8-7ffafda70a79.jsonl",
+  "04_sqlite_bug": "/home/nicolas/.claude/projects/-home-nicolas-source-classifier-repos-worktrees-04-sqlite-bug/9f269951-770a-4d5a-b0f0-1b9c7b52a24e.jsonl",
+  "12_linux_fs_bug": "/home/nicolas/.claude/projects/-home-nicolas-source-classifier-repos-worktrees-12-linux-fs-bug/4f479408-78cc-4f78-b2b2-1c7ca54db3bc.jsonl",
+  "10_linux_usb_bug": "/home/nicolas/.claude/projects/-home-nicolas-source-classifier-repos-worktrees-10-linux-usb-bug/4a9c29cc-deb9-4722-8fd7-59ca54135ae8.jsonl",
+  "24_rbtree_bug": "/home/nicolas/.claude/projects/-home-nicolas-source-classifier-repos-worktrees-24-rbtree-bug/d207661a-1542-44f6-b6a1-5754648c1360.jsonl",
+  "02_gcc_bug": "/home/nicolas/.claude/projects/-home-nicolas-source-classifier-repos-worktrees-02-gcc-bug/232a9848-8008-4a56-8b6c-1dc521ab5731.jsonl",
+  "08_express_bug": "/home/nicolas/.claude/projects/-home-nicolas-source-classifier-repos-worktrees-08-express-bug/b21cf0d6-267c-4d25-b8ce-6e8e7d8724a4.jsonl"
+}
