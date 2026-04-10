@@ -11,7 +11,7 @@ When AI coding agents get stuck on a hard task, they can burn a significant port
 
 On our 13-task benchmark, the worst stuck cases burned 10× more time than a normal solve (e.g. rbtree went from 671s stuck to 45s with a nudge). Stuck episodes are not the common case — most sessions are productive — but when they happen they dominate the cost, and the agent has no built-in mechanism to recognize circular reasoning or backtrack. A lightweight external monitor can.
 
-## HTTP Proxy (`stuck-detector-v2/proxy/`)
+## HTTP Proxy (`proxy/`)
 
 A local proxy between Claude Code and the Anthropic API. Intercepts requests, scores the recent tool-call history with a CNN, and injects a corrective nudge when stuck is detected. **No patches, no plugins, works with vanilla Claude Code.**
 
@@ -25,7 +25,7 @@ Proxy (localhost:8080)
     ├── Parse tool calls from message history
     ├── Abstract into 10-step sliding windows
     ├── Score with CNN (pure JS, 57 KB weights)
-    ├── Inject corrective nudge when stuck detected
+    ├── Inject escalating nudge when stuck detected
     ├── Retry with exponential backoff on 429/529
     └── Forward to api.anthropic.com
 ```
@@ -33,7 +33,7 @@ Proxy (localhost:8080)
 ### Usage
 
 ```bash
-cd stuck-detector-v2/proxy
+cd proxy
 node proxy_cnn.mjs &
 
 # Run vanilla Claude Code through the proxy
@@ -51,6 +51,18 @@ ANTHROPIC_BASE_URL=http://localhost:8080 claude "your prompt"
 | `STUCK_ENABLED` | `1` | Enable stuck detection |
 | `STUCK_COOLDOWN` | `5` | Turns between nudges |
 | `COMPACT_ENABLED` | `0` | Auto-compact Bash outputs (optional) |
+
+### Escalating Nudge
+
+When the CNN fires, it injects a corrective message into the conversation. If the agent stays stuck across multiple cooldown windows, the nudge escalates:
+
+| Level | Trigger | Behavior |
+|---|---|---|
+| 0 (soft) | First detection | Asks the agent to reflect — "are you going in circles?" |
+| 1 (medium) | Still stuck after cooldown | Demands a 3-step explicit diagnosis before the next tool call |
+| 2 (hard) | Still stuck after two cooldowns | STOP directive — no tool calls until root cause is stated |
+
+`nudgeLevel` resets to 0 when the CNN score drops below the streak threshold, indicating the agent has responded and moved on.
 
 ## CNN Stuck Detector
 
