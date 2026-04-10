@@ -63,7 +63,7 @@ When the CNN fires, it injects a corrective message into the conversation. If th
 | 1 (medium) | Still stuck after cooldown | Demands a 3-step explicit diagnosis before the next tool call |
 | 2 (hard) | Still stuck after two cooldowns | STOP directive — no tool calls until root cause is stated |
 
-`nudgeLevel` resets to 0 when the CNN score drops below the streak threshold, indicating the agent has responded and moved on.
+`nudgeLevel` resets to 0 when the CNN score drops below `STUCK_RESET_THRESHOLD` (default: threshold × 0.94), indicating the agent has responded and moved on.
 
 ## CNN Stuck Detector
 
