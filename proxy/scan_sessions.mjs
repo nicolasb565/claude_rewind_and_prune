@@ -114,15 +114,25 @@ function findJsonlFiles(dir) {
   return results;
 }
 
+// Derive the session's original CWD from the Claude project dir name.
+// Claude encodes cwd as: absolute path with '/' replaced by '-', leading '/'->''.
+// e.g. -home-nicolas-source-foo → /home/nicolas/source/foo
+function deriveCwd(filepath, projectsRoot) {
+  const rel = filepath.slice(projectsRoot.length + 1); // strip projects root + sep
+  const projectDir = rel.split("/")[0];                 // first segment = project dir
+  // project dir starts with '-' representing the leading '/'
+  return projectDir.replace(/-/g, "/").replace(/^\//, "/");
+}
+
 const files = findJsonlFiles(scanDir);
 if (files.length === 0) {
-  console.error(`No .jsonl files found in ${scanDir}`);
+  console.log(`No .jsonl files found in ${scanDir}`);
   process.exit(1);
 }
 
 if (verbose) {
-  console.error(`Scanning ${files.length} session files in ${scanDir} ...`);
-  console.error(`Threshold: ${threshold}\n`);
+  console.log(`Scanning ${files.length} session files in ${scanDir} ...`);
+  console.log(`Threshold: ${threshold}  min-steps: ${minSteps}\n`);
 }
 
 let found = 0;
@@ -134,13 +144,16 @@ for (const file of files) {
   if (!showAll && maxScore < threshold) continue;
 
   found++;
+  const tag = maxScore >= threshold ? " <stuck>" : "";
+  const cwd = deriveCwd(file, scanDir);
   if (verbose) {
-    const tag = maxScore >= threshold ? " <stuck>" : "";
-    process.stderr.write(`  max=${maxScore.toFixed(3)} fired=${firedCount} steps=${steps}  ${file}${tag}\n`);
+    console.log(`  max=${maxScore.toFixed(3)} fired=${firedCount} steps=${steps}  cwd=${cwd}${tag}`);
+    console.log(`  ${file}`);
+  } else {
+    console.log(file);
   }
-  console.log(file);
 }
 
 if (verbose) {
-  process.stderr.write(`\n${found} session(s) above threshold ${threshold} (out of ${files.length} scanned)\n`);
+  console.log(`\n${found} session(s) found (out of ${files.length} scanned)`);
 }
