@@ -50,6 +50,7 @@ ANTHROPIC_BASE_URL=http://localhost:8080 claude "your prompt"
 | `PROXY_UPSTREAM` | `https://api.anthropic.com` | Upstream API |
 | `STUCK_ENABLED` | `1` | Enable stuck detection |
 | `STUCK_COOLDOWN` | `5` | Turns between nudges |
+| `STUCK_RESET_THRESHOLD` | `threshold × 0.94` | Score must drop below this to reset nudge escalation |
 | `COMPACT_ENABLED` | `0` | Auto-compact Bash outputs (optional) |
 
 ### Escalating Nudge

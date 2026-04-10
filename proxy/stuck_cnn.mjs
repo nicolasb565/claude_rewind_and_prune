@@ -6,22 +6,23 @@
  * similarity, cycle detection). Language-agnostic — works across
  * programming languages and task types.
  *
- * Confirmation rule: streak-based. Fires if the current window scores
- * above threshold AND at least one of the immediately preceding windows
- * also scored above the streak threshold (sustained signal).
+ * Detection rule: direct threshold on CNN output (no confirmation window).
+ * Streak/confirmation rules were evaluated but did not improve over direct
+ * thresholding — they only delay the first detection without suppressing FPs.
  *
- * This rule was chosen by analyzing 30+ temporal aggregations on the
- * test set (see src/analyze_temporal.py). streak_thresh_0.9 achieved
- * F1=0.886, recall=0.933 — a +11% recall gain vs raw single-window
- * detection at the cost of ~6% precision.
+ * Nudge escalation: soft → medium → hard if the agent stays stuck across
+ * consecutive STUCK_COOLDOWN windows. Resets when score drops below
+ * NUDGE_RESET_THRESHOLD (hysteresis to avoid resetting on brief dips).
  */
 
 import { classifyWindow, normalizeFeatures, config } from "./classify_cnn.mjs";
 import { StuckDetectorState } from "./abstract_step.mjs";
 
 const WINDOW_SIZE = config.window_size;
-const STREAK_THRESHOLD = 0.9; // score considered "high enough" for streak counting
-const STREAK_REQUIRED = 1;     // require at least 1 prior window above streak threshold
+// Hysteresis threshold for nudgeLevel reset: score must drop below this to
+// consider the agent "unstuck" and reset escalation back to level 0.
+// Kept below the fire threshold so a brief dip doesn't reset prematurely.
+const NUDGE_RESET_THRESHOLD = parseFloat(process.env.STUCK_RESET_THRESHOLD || String(config.threshold * 0.94));
 
 // Per-session state
 const sessions = new Map();
@@ -42,7 +43,7 @@ function getSession(messages) {
   if (!sessions.has(key)) {
     sessions.set(key, {
       detector: new StuckDetectorState(),
-      windowScores: [],
+  
       turnCounter: 0,
       lastNudgeTurn: -999,
       nudgeLevel: 0,       // escalates 0→1→2 while stuck persists across cooldowns
@@ -167,33 +168,13 @@ export function pruneIfStuck(messages, log) {
     window.toolIndices, normalizedCont, window.windowFeatures
   );
 
-  // Streak-based confirmation: fire if current score is high AND at least one of
-  // the prior windows scored above the streak threshold (sustained signal).
-  // This replaces the old "2 of last 3 above threshold" rule.
-  session.windowScores.push(score);
-  // Keep enough history to count streaks; cap at 10 for memory
-  if (session.windowScores.length > 10) {
-    session.windowScores.shift();
-  }
-
-  // Count consecutive windows scoring >= STREAK_THRESHOLD ending at the
-  // window BEFORE the current one (i.e. the "prior streak").
-  let priorStreak = 0;
-  for (let i = session.windowScores.length - 2; i >= 0; i--) {
-    if (session.windowScores[i] >= STREAK_THRESHOLD) {
-      priorStreak++;
-    } else {
-      break;
-    }
-  }
-
-  // Fire if current is above threshold AND we have a sustained prior streak.
-  // If score dropped below streak threshold, reset escalation level.
-  const currentHigh = score >= config.threshold;
-  const shouldFire = currentHigh && priorStreak >= STREAK_REQUIRED;
+  // Direct threshold: fire whenever CNN score exceeds threshold.
+  // Streak/confirmation rules were tested and did not improve over direct
+  // thresholding — they only delay the first detection without suppressing FPs.
+  const shouldFire = score >= config.threshold;
 
   if (!shouldFire) {
-    if (score < STREAK_THRESHOLD) session.nudgeLevel = 0; // agent responded, reset
+    if (score < NUDGE_RESET_THRESHOLD) session.nudgeLevel = 0; // agent responded, reset
     return messages;
   }
 
@@ -202,9 +183,7 @@ export function pruneIfStuck(messages, log) {
     score,
     nudgeLevel: session.nudgeLevel,
     threshold: config.threshold,
-    streakThreshold: STREAK_THRESHOLD,
-    priorStreak,
-    windowScores: [...session.windowScores],
+    nudgeResetThreshold: NUDGE_RESET_THRESHOLD,
     stepCount: session.detector.stepCount,
   });
 
