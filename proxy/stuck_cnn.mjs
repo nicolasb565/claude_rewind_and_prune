@@ -45,6 +45,7 @@ function getSession(messages) {
       windowScores: [],
       turnCounter: 0,
       lastNudgeTurn: -999,
+      nudgeLevel: 0,       // escalates 0→1→2 while stuck persists across cooldowns
       initialized: false,
     });
   }
@@ -186,15 +187,20 @@ export function pruneIfStuck(messages, log) {
     }
   }
 
-  // Fire if current is above threshold AND we have a sustained prior streak
+  // Fire if current is above threshold AND we have a sustained prior streak.
+  // If score dropped below streak threshold, reset escalation level.
   const currentHigh = score >= config.threshold;
   const shouldFire = currentHigh && priorStreak >= STREAK_REQUIRED;
 
-  if (!shouldFire) return messages;
+  if (!shouldFire) {
+    if (score < STREAK_THRESHOLD) session.nudgeLevel = 0; // agent responded, reset
+    return messages;
+  }
 
   log?.("cnn_stuck_detected", {
     turnCount: session.turnCounter,
     score,
+    nudgeLevel: session.nudgeLevel,
     threshold: config.threshold,
     streakThreshold: STREAK_THRESHOLD,
     priorStreak,
@@ -204,7 +210,7 @@ export function pruneIfStuck(messages, log) {
 
   session.lastNudgeTurn = session.turnCounter;
 
-  // Build recent tool call summary for the nudge
+  // Build recent tool call summary
   const recentTools = [];
   for (const msg of messages.slice(-20)) {
     if (!Array.isArray(msg.content)) continue;
@@ -216,30 +222,56 @@ export function pruneIfStuck(messages, log) {
       }
     }
   }
+  const recentList = recentTools.slice(-8).join("\n  ");
+  const pct = (score * 100).toFixed(0);
+  const level = session.nudgeLevel;
+
+  const nudgeText = level === 0
+    ? // Soft — ask the agent to reflect
+      `[CONTEXT MONITOR — turn ${session.turnCounter}, confidence ${pct}%]\n\n` +
+      `Your recent actions show signs of repetitive patterns. ` +
+      `You may be going in circles.\n\n` +
+      `Recent tool calls:\n  ${recentList}\n\n` +
+      `Review your last few turns critically:\n` +
+      `- Are you retrying the same approach with minor variations?\n` +
+      `- Are you investigating the same files/functions repeatedly?\n` +
+      `- Has your hypothesis changed or are you stuck on the same one?\n\n` +
+      `If you are going in circles, try a fundamentally different strategy.\n` +
+      `State what you have learned so far and what new approach you will try.`
+
+    : level === 1
+    ? // Medium — more direct, demand a strategy change
+      `[CONTEXT MONITOR — turn ${session.turnCounter}, confidence ${pct}% — repeated signal]\n\n` +
+      `You have been nudged before and the repetitive pattern continues.\n\n` +
+      `Recent tool calls:\n  ${recentList}\n\n` +
+      `You appear to be stuck in a loop. The approach you are using is not working.\n` +
+      `Before your next tool call:\n` +
+      `1. State in one sentence what you have been trying to do.\n` +
+      `2. State specifically why it has not worked.\n` +
+      `3. Propose a different approach you have not tried yet.\n\n` +
+      `Do not retry the same command. Switch strategy.`
+
+    : // Hard — stop everything, force explicit plan
+      `[CONTEXT MONITOR — turn ${session.turnCounter}, confidence ${pct}% — escalated]\n\n` +
+      `STOP. You are deeply stuck and have not responded to prior nudges.\n\n` +
+      `Recent tool calls:\n  ${recentList}\n\n` +
+      `Do not run any more tool calls until you have answered these:\n` +
+      `1. What is the root cause of the problem you are trying to solve?\n` +
+      `2. What have you tried, and why did each attempt fail?\n` +
+      `3. What fundamentally different approach will you take next?\n\n` +
+      `If you cannot answer these, state that clearly and ask for guidance.`;
+
+  session.nudgeLevel = Math.min(session.nudgeLevel + 1, 2);
 
   const nudge = {
     role: "user",
-    content: [
-      {
-        type: "text",
-        text:
-          `[CONTEXT MONITOR — turn ${session.turnCounter}, confidence ${(score * 100).toFixed(0)}%]\n\n` +
-          `Your recent actions show signs of repetitive patterns. ` +
-          `You may be going in circles.\n\n` +
-          `Recent tool calls:\n  ${recentTools.slice(-8).join("\n  ")}\n\n` +
-          `Review your last few turns critically:\n` +
-          `- Are you retrying the same approach with minor variations?\n` +
-          `- Are you investigating the same files/functions repeatedly?\n` +
-          `- Has your hypothesis changed or are you stuck on the same one?\n\n` +
-          `If you are going in circles, try a fundamentally different strategy.\n` +
-          `State what you have learned so far and what new approach you will try.`,
-      },
-    ],
+    content: [{ type: "text", text: nudgeText }],
   };
 
   log?.("cnn_nudge_injected", {
     turnCount: session.turnCounter,
     score,
+    nudgeLevel: level,
     method: "cnn",
     recentTools: recentTools.slice(-5),
   });
