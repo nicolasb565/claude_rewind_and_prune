@@ -32,7 +32,8 @@ const WINDOW_SIZE = config.window_size;
 const argv = process.argv.slice(2);
 const sessionFile = argv.find(a => !a.startsWith("-"));
 if (!sessionFile) {
-  console.log("Usage: node proxy/replay_nudge.mjs session.jsonl [--level 0|1|2] [--step N] [--out dir] [--run]");
+  console.log("Usage: node proxy/replay_nudge.mjs session.jsonl [--level 0|1|2] [--step N] [--out dir] [--run] [--list]");
+  console.log("  --list   show all tool calls with CNN scores and exit (pick a --step N from this)");
   process.exit(0);
 }
 
@@ -45,6 +46,7 @@ const nudgeLevel = parseInt(getFlag("level", "0"), 10);
 const forcedStep = getFlag("step", null);
 const outDir     = getFlag("out", dirname(sessionFile));
 const autoRun    = argv.includes("--run");
+const listMode   = argv.includes("--list");
 
 // ── Parse session ─────────────────────────────────────────────────────────────
 // We need two things:
@@ -193,6 +195,27 @@ if (toolCalls.length < WINDOW_SIZE) {
 
 // Select cutoff
 const windowScores = scoreWindows(toolCalls);
+
+// ── List mode: show all tool calls with CNN scores and exit ───────────────────
+if (listMode) {
+  // Build a score per step: score of the window that ENDS at that step
+  const scoreByEnd = new Map(windowScores.map(w => [w.end, w.score]));
+  console.log(`${"step".padStart(4)}  ${"tool".padEnd(8)}  ${"cnn".padStart(5)}  input`);
+  console.log("─".repeat(72));
+  for (let i = 0; i < toolCalls.length; i++) {
+    const tc    = toolCalls[i];
+    const score = scoreByEnd.get(i);
+    const v     = tc.input?.command || tc.input?.file_path || tc.input?.pattern || "";
+    const bar   = score !== undefined
+      ? (score >= config.threshold ? "▓" : score >= 0.5 ? "░" : " ") + score.toFixed(2)
+      : "     ";
+    console.log(`${String(i).padStart(4)}  ${tc.name.padEnd(8)}  ${bar.padStart(5)}  ${String(v).replace(/\n/g, " ").slice(0, 50)}`);
+  }
+  console.log(`\n${toolCalls.length} tool calls total. Peak CNN window ends at step with ▓.`);
+  console.log(`Re-run with --step N to inject the nudge at step N.`);
+  process.exit(0);
+}
+
 let cutoffStep, cnnScore;
 
 if (forcedStep !== null) {
@@ -245,8 +268,10 @@ console.log(`CNN:      ${cnnScore.toFixed(3)}  (threshold ${config.threshold})  
 console.log(`Nudge:    level ${nudgeLevel} / ${levelNames[nudgeLevel]}`);
 console.log(`Session:  ${outPath}`);
 console.log();
-console.log(`Resume with:`);
+console.log(`Resume with (interactive — runs to completion):`);
 console.log(`  claude --resume ${newUuid} --fork-session`);
+console.log(`Resume with (one response then exit — cheaper):`);
+console.log(`  claude --resume ${newUuid} --fork-session --print`);
 console.log();
 console.log(`Recent tool calls before nudge:`);
 for (const tc of recentTcs) {
