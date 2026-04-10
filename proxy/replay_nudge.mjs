@@ -1,40 +1,37 @@
 #!/usr/bin/env node
 /**
- * Nudge replay via Claude Code — creates a synthetic session file truncated
- * at a stuck point with a nudge injected, then prints the `claude --resume`
- * command to run it in the full Claude Code environment (tools, system prompt,
- * extended thinking — everything the raw API test cannot provide).
+ * Nudge replay via Claude Code.
+ *
+ * Finds the peak stuck window in a session, injects a nudge, and spawns
+ * `claude --resume <session-id> --print "<nudge>"` from the session's
+ * original cwd — giving the full Claude Code environment (tools, system
+ * prompt, extended thinking).
  *
  * Usage:
- *   node proxy/replay_nudge.mjs /path/to/session.jsonl [options]
- *
- *   node proxy/replay_nudge.mjs ~/.claude/projects/my-proj/abc.jsonl --level 1
- *   # prints: claude --resume <new-uuid> --fork-session
+ *   node proxy/replay_nudge.mjs session.jsonl [options]
  *
  * Options:
- *   --level  0|1|2   Nudge level (default: 0)
- *   --step   N       Truncate after tool call N (default: auto = peak CNN window)
- *   --out    <dir>   Write session file here (default: same dir as source)
- *   --run            Exec `claude --resume` immediately (interactive)
+ *   --level  0|1|2   Nudge level: 0=soft 1=medium 2=hard (default: 0)
+ *   --step   N       Inject after tool call N (default: auto = peak CNN window)
+ *   --list           Show all tool calls with CNN scores and exit
+ *   --list-threshold F  With --list, hide steps below this score (default: 0)
+ *   --dry-run        Print the claude command but don't execute it
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
-import { randomUUID } from "crypto";
-import { dirname, join } from "path";
-import { homedir } from "os";
-import { execSync } from "child_process";
+import { readFileSync } from "fs";
+import { spawn }        from "child_process";
+import { basename }     from "path";
 import { StuckDetectorState } from "./abstract_step.mjs";
 import { classifyWindow, normalizeFeatures, config } from "./classify_cnn.mjs";
 
 const WINDOW_SIZE = config.window_size;
 
-// ── CLI ──────────────────────────────────────────────────────────────────────
+// ── CLI ───────────────────────────────────────────────────────────────────────
 
 const argv = process.argv.slice(2);
 const sessionFile = argv.find(a => !a.startsWith("-"));
 if (!sessionFile) {
-  console.log("Usage: node proxy/replay_nudge.mjs session.jsonl [--level 0|1|2] [--step N] [--out dir] [--run] [--list]");
-  console.log("  --list   show all tool calls with CNN scores and exit (pick a --step N from this)");
+  console.log("Usage: node proxy/replay_nudge.mjs session.jsonl [--level 0|1|2] [--step N] [--list [--list-threshold F]] [--dry-run]");
   process.exit(0);
 }
 
@@ -43,71 +40,61 @@ function getFlag(name, def) {
   return i >= 0 ? argv[i + 1] : def;
 }
 
-const nudgeLevel = parseInt(getFlag("level", "0"), 10);
-const forcedStep = getFlag("step", null);
-// Default output dir: Claude project dir for the current cwd.
-// claude --resume scopes to the current project, so writing there
-// means you can run the resume command from wherever you run this script.
-const defaultOutDir = join(homedir(), ".claude", "projects",
-  process.cwd().replace(/\//g, "-"));
-const outDir = getFlag("out", defaultOutDir);
-const autoRun    = argv.includes("--run");
-const listMode      = argv.includes("--list");
-const listThreshold = parseFloat(getFlag("list-threshold", "0.0"));
+const nudgeLevel     = parseInt(getFlag("level", "0"), 10);
+const forcedStep     = getFlag("step", null);
+const listMode       = argv.includes("--list");
+const listThreshold  = parseFloat(getFlag("list-threshold", "0.0"));
+const dryRun         = argv.includes("--dry-run");
 
 // ── Parse session ─────────────────────────────────────────────────────────────
-// We need two things:
-//   1. Raw JSONL lines (to copy verbatim and preserve Claude Code's metadata)
-//   2. Tool call list (for CNN scoring)
-// We also sniff the format of an existing user message line to use as template
-// for the injected nudge (preserving any extra fields like uuid, timestamp, etc.)
 
 function parseSession(filepath) {
-  const raw        = readFileSync(filepath, "utf-8").trim().split("\n");
-  const toolCalls  = [];   // { name, input, output, lineIdx }
-  const outputMap  = new Map();
-  let   nudgeTemplate = null;   // raw line from a user message — used as format template
+  const raw       = readFileSync(filepath, "utf-8").trim().split("\n");
+  const toolCalls = [];
+  const outputMap = new Map();
+  let sessionId   = basename(filepath, ".jsonl");
+  let sessionCwd  = null;
 
-  // First pass: collect tool results + find a user message template
+  // First pass: collect tool results, cwd, session id
   for (const line of raw) {
     let entry; try { entry = JSON.parse(line); } catch { continue; }
+    if (entry.sessionId && !sessionId) sessionId = entry.sessionId;
+    if (entry.cwd && !sessionCwd)      sessionCwd = entry.cwd;
     const msg = entry.message;
-    if (!msg) continue;
-    if (msg.role === "user" && Array.isArray(msg.content)) {
-      // Use the first simple user text message as format template
-      if (!nudgeTemplate && msg.content.some(b => b.type === "text")) {
-        nudgeTemplate = entry;
-      }
-      for (const b of msg.content) {
-        if (b.type !== "tool_result") continue;
-        const c = b.content;
-        outputMap.set(b.tool_use_id,
-          Array.isArray(c) ? c.filter(x => x.type === "text").map(x => x.text).join(" ")
-                           : String(c || ""));
-      }
+    if (!msg || msg.role !== "user" || !Array.isArray(msg.content)) continue;
+    for (const b of msg.content) {
+      if (b.type !== "tool_result") continue;
+      const c = b.content;
+      outputMap.set(b.tool_use_id,
+        Array.isArray(c) ? c.filter(x => x.type === "text").map(x => x.text).join(" ")
+                         : String(c || ""));
     }
   }
 
-  // Second pass: build ordered tool call list with line indices
-  let lastAssistantLine = -1;
+  // Extract session id from entries if filename is a uuid (normal case)
+  for (const line of raw) {
+    let entry; try { entry = JSON.parse(line); } catch { continue; }
+    if (entry.sessionId) { sessionId = entry.sessionId; break; }
+    if (entry.cwd && !sessionCwd) sessionCwd = entry.cwd;
+  }
+
+  // Second pass: ordered tool call list with line indices
   for (let i = 0; i < raw.length; i++) {
     let entry; try { entry = JSON.parse(raw[i]); } catch { continue; }
+    if (!entry.cwd && entry.cwd !== undefined) sessionCwd ??= entry.cwd;
     const msg = entry.message;
-    if (!msg || !Array.isArray(msg.content)) continue;
-    if (msg.role === "assistant") {
-      lastAssistantLine = i;
-      for (const b of msg.content) {
-        if (b.type !== "tool_use") continue;
-        toolCalls.push({
-          id: b.id, name: b.name, input: b.input || {},
-          output: outputMap.get(b.id) || "",
-          lineIdx: i,
-        });
-      }
+    if (!msg || msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
+    for (const b of msg.content) {
+      if (b.type !== "tool_use") continue;
+      toolCalls.push({
+        id: b.id, name: b.name, input: b.input || {},
+        output: outputMap.get(b.id) || "",
+        lineIdx: i,
+      });
     }
   }
 
-  return { raw, toolCalls, nudgeTemplate };
+  return { toolCalls, sessionId, sessionCwd };
 }
 
 // ── CNN scoring ───────────────────────────────────────────────────────────────
@@ -172,40 +159,20 @@ function makeNudgeText(level, turnNum, score, recentList) {
   }
 }
 
-// ── Build nudge JSONL line ────────────────────────────────────────────────────
-// Clone the template entry (preserving whatever metadata Claude Code uses),
-// replace the message content with our nudge text.
-
-function makeNudgeLine(template, nudgeText, sessionId) {
-  // If we have a template entry from the original file, clone its structure
-  const entry = template ? JSON.parse(JSON.stringify(template)) : {};
-  entry.message = {
-    role: "user",
-    content: [{ type: "text", text: nudgeText }],
-  };
-  // Update metadata fields if present
-  if ("uuid"      in entry) entry.uuid      = randomUUID();
-  if ("timestamp" in entry) entry.timestamp = new Date().toISOString();
-  if ("sessionId" in entry) entry.sessionId = sessionId;
-  return JSON.stringify(entry);
-}
-
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const { raw, toolCalls, nudgeTemplate } = parseSession(sessionFile);
-const sessionName = sessionFile.split("/").pop().replace(".jsonl", "");
+const { toolCalls, sessionId, sessionCwd } = parseSession(sessionFile);
 
 if (toolCalls.length < WINDOW_SIZE) {
   console.error(`Too few tool calls (${toolCalls.length} < ${WINDOW_SIZE})`);
   process.exit(1);
 }
 
-// Select cutoff
 const windowScores = scoreWindows(toolCalls);
 
-// ── List mode: show all tool calls with CNN scores and exit ───────────────────
+// ── List mode ─────────────────────────────────────────────────────────────────
+
 if (listMode) {
-  // Build a score per step: score of the window that ENDS at that step
   const scoreByEnd = new Map(windowScores.map(w => [w.end, w.score]));
   console.log(`${"step".padStart(4)}  ${"tool".padEnd(8)}  ${"cnn".padStart(5)}  input`);
   console.log("─".repeat(72));
@@ -220,74 +187,73 @@ if (listMode) {
     shown++;
   }
   console.log(`\n${shown} / ${toolCalls.length} steps shown (--list-threshold ${listThreshold}). ▓ = above fire threshold.`);
-  console.log(`Re-run with --step N to inject the nudge at step N.`);
+  console.log(`Re-run with --step N to inject nudge at that step.`);
   process.exit(0);
 }
 
-let cutoffStep, cnnScore;
+// ── Select cutoff ─────────────────────────────────────────────────────────────
 
+let cutoffStep, cnnScore;
 if (forcedStep !== null) {
   cutoffStep = Math.min(parseInt(forcedStep, 10), toolCalls.length - 1);
-  const w = windowScores.find(s => s.end === cutoffStep);
-  cnnScore = w?.score ?? 0;
+  cnnScore   = windowScores.find(s => s.end === cutoffStep)?.score ?? 0;
 } else {
   const best = windowScores.reduce((a, b) => b.score > a.score ? b : a);
   cutoffStep = best.end;
   cnnScore   = best.score;
 }
 
-// Find the JSONL line that follows the assistant turn containing the cutoff step.
-// We want to include the user tool_result message after the assistant turn,
-// so we cut after the first user message that comes after cutoffStep's line.
-const cutoffLineIdx = toolCalls[cutoffStep].lineIdx;
-let cutoffRawLine = cutoffLineIdx;
-for (let i = cutoffLineIdx + 1; i < raw.length; i++) {
-  let entry; try { entry = JSON.parse(raw[i]); } catch { continue; }
-  if (entry.message?.role === "user") { cutoffRawLine = i; break; }
-}
-
-// Build recent tool summary for nudge text
 const recentTcs  = toolCalls.slice(Math.max(0, cutoffStep - 7), cutoffStep + 1);
 const recentList = recentTcs.map(tc => {
   const v = tc.input?.command || tc.input?.file_path || tc.input?.pattern || "";
   return `${tc.name}: ${String(v).replace(/\n/g, " ").slice(0, 52)}`;
 }).join("\n  ");
 
-const nudgeText = makeNudgeText(nudgeLevel, cutoffStep + 1, cnnScore, recentList);
-const newUuid   = randomUUID();
-const nudgeLine = makeNudgeLine(nudgeTemplate, nudgeText, newUuid);
-
-// Truncate and append nudge
-const outputLines = [...raw.slice(0, cutoffRawLine + 1), nudgeLine];
-
-// Write new session file
-mkdirSync(outDir, { recursive: true });
-const outPath = join(outDir, `${newUuid}.jsonl`);
-writeFileSync(outPath, outputLines.join("\n") + "\n");
+const nudgeText  = makeNudgeText(nudgeLevel, cutoffStep + 1, cnnScore, recentList);
+const levelNames = ["soft", "medium", "hard"];
+const testMode   = cnnScore < config.threshold ? "harmlessness (productive zone)" : "effectiveness (stuck zone)";
 
 // ── Report ────────────────────────────────────────────────────────────────────
 
-const testMode = cnnScore < config.threshold ? "harmlessness (productive zone)" : "effectiveness (stuck zone)";
-const levelNames = ["soft", "medium", "hard"];
-
 console.log(`Source:   ${sessionFile}`);
-console.log(`Cutoff:   step ${cutoffStep} / ${toolCalls.length - 1}  (line ${cutoffRawLine} / ${raw.length - 1})`);
+console.log(`Cutoff:   step ${cutoffStep} / ${toolCalls.length - 1}`);
 console.log(`CNN:      ${cnnScore.toFixed(3)}  (threshold ${config.threshold})  →  ${testMode}`);
 console.log(`Nudge:    level ${nudgeLevel} / ${levelNames[nudgeLevel]}`);
-console.log(`Session:  ${outPath}`);
-console.log();
-console.log(`Resume with (interactive — runs to completion):`);
-console.log(`  claude --resume ${newUuid} --fork-session`);
-console.log(`Resume with (one response then exit — cheaper):`);
-console.log(`  claude --resume ${newUuid} --fork-session --print`);
+console.log(`Cwd:      ${sessionCwd ?? "(unknown)"}`);
+console.log(`Session:  ${sessionId}`);
 console.log();
 console.log(`Recent tool calls before nudge:`);
 for (const tc of recentTcs) {
   const v = tc.input?.command || tc.input?.file_path || tc.input?.pattern || "";
   console.log(`  ${tc.name}: ${String(v).replace(/\n/g, " ").slice(0, 60)}`);
 }
+console.log();
 
-if (autoRun) {
-  console.log("\nRunning claude --resume ...");
-  execSync(`claude --resume ${newUuid} --fork-session`, { stdio: "inherit" });
+// ── Spawn claude ──────────────────────────────────────────────────────────────
+
+const claudeArgs = ["--resume", sessionId, "--print", nudgeText];
+
+if (dryRun) {
+  console.log(`Would run (from ${sessionCwd}):`);
+  console.log(`  claude --resume ${sessionId} --print "<nudge text>"`);
+  process.exit(0);
 }
+
+if (!sessionCwd) {
+  console.error("Could not determine session cwd — use --dry-run to see the command and run it manually.");
+  process.exit(1);
+}
+
+console.log(`Spawning claude from ${sessionCwd} ...\n`);
+
+const child = spawn("claude", claudeArgs, {
+  cwd:   sessionCwd,
+  stdio: "inherit",
+});
+
+child.on("error", err => {
+  console.error(`Failed to spawn claude: ${err.message}`);
+  process.exit(1);
+});
+
+child.on("exit", code => process.exit(code ?? 0));
