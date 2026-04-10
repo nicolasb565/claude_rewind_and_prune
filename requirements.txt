@@ -1,0 +1,5 @@
+# Training pipeline dependencies
+# Install with: pip install -r requirements.txt
+torch>=2.0
+numpy>=1.24
+pyarrow>=12.0   # only needed for process_claude_code.py (nlile parquet ingestion)
