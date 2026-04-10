@@ -160,6 +160,16 @@ def find_session_file(sid, task_slug, claude_projects, worktree_base):
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--paths', action='store_true',
+                        help='print session file paths only (for piping to replay_nudge.mjs)')
+    parser.add_argument('--paths-stuck', action='store_true',
+                        help='like --paths but only sessions where CNN fired (max score >= threshold)')
+    args = parser.parse_args()
+
+    paths_mode = args.paths or args.paths_stuck
+
     results_dir = os.environ.get('BENCHMARK_RESULTS_DIR', '')
     if not results_dir or not os.path.isdir(results_dir):
         print("Set BENCHMARK_RESULTS_DIR to the directory containing off_1/, off_2/, heldout_off_1/")
@@ -170,14 +180,16 @@ def main():
     worktree_base = os.environ.get('WORKTREE_BASE', '')
 
     model, mean, std, threshold = load_model()
-    print(f"Model loaded. Threshold: {threshold}")
+    if not paths_mode:
+        print(f"Model loaded. Threshold: {threshold}")
 
     summary = {}
     for run in ['off_1', 'off_2', 'heldout_off_1']:
         run_dir = os.path.join(results_dir, run)
         if not os.path.isdir(run_dir):
             continue
-        print(f"\n--- {run} ---")
+        if not paths_mode:
+            print(f"\n--- {run} ---")
         for fname in sorted(os.listdir(run_dir)):
             if not fname.endswith('.json'):
                 continue
@@ -189,24 +201,33 @@ def main():
 
             session_file = find_session_file(sid, task_slug, claude_projects, worktree_base)
             if not session_file:
-                print(f"  {task:25s} (session not found)")
+                if not paths_mode:
+                    print(f"  {task:25s} (session not found)")
                 continue
 
             scores, n_steps = score_session(session_file, model, mean, std)
             if scores is None:
-                print(f"  {task:25s} {n_steps:3d} steps (too short)")
+                if not paths_mode:
+                    print(f"  {task:25s} {n_steps:3d} steps (too short)")
                 continue
 
             max_s = max(scores)
             fired = sum(1 for s in scores if s >= threshold)
-            tag = ' <fired>' if fired > 0 else ''
-            print(f"  {task:25s} {n_steps:3d}st  max={max_s:.3f} ({fired:2d}/{len(scores)}){tag}")
-            summary[f'{run}/{task}'] = {'max': max_s, 'fired': fired, 'n_windows': len(scores)}
 
-    out_path = os.path.join(MODEL_DIR, 'benchmark_summary.json')
-    with open(out_path, 'w') as f:
-        json.dump(summary, f, indent=2)
-    print(f"\nSaved {out_path}")
+            if paths_mode:
+                if args.paths_stuck and fired == 0:
+                    continue
+                print(session_file)
+            else:
+                tag = ' <fired>' if fired > 0 else ''
+                print(f"  {task:25s} {n_steps:3d}st  max={max_s:.3f} ({fired:2d}/{len(scores)}){tag}")
+                summary[f'{run}/{task}'] = {'max': max_s, 'fired': fired, 'n_windows': len(scores)}
+
+    if not paths_mode:
+        out_path = os.path.join(MODEL_DIR, 'benchmark_summary.json')
+        with open(out_path, 'w') as f:
+            json.dump(summary, f, indent=2)
+        print(f"\nSaved {out_path}")
 
 
 if __name__ == '__main__':
