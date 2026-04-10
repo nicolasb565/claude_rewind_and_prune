@@ -11,10 +11,9 @@
  * thresholding — they only delay the first detection without suppressing FPs.
  *
  * Nudge escalation: two silent detections (-2→-1→0) before the first nudge
- * fires, then soft → medium → hard if the agent stays stuck across consecutive
- * STUCK_COOLDOWN windows. Resets when score drops below NUDGE_RESET_THRESHOLD.
- * The two silent levels absorb false positives from short productive loops
- * (edit→test cycles) that self-resolve within a cooldown window.
+ * fires, then soft → medium → hard. Exponential backoff per level: 1/2/4/8
+ * turns so silent levels clear fast and nudge levels give the agent increasing
+ * time to respond. Resets to -2 when score drops below NUDGE_RESET_THRESHOLD.
  */
 
 import { classifyWindow, normalizeFeatures, config } from "./classify_cnn.mjs";
@@ -121,7 +120,10 @@ export function pruneIfStuck(messages, log) {
   const session = getSession(messages);
   session.turnCounter++;
 
-  const cooldown = parseInt(process.env.STUCK_COOLDOWN || "5", 10);
+  // Exponential backoff per level: silent levels clear fast, nudge levels give
+  // the agent increasing time to respond. Level -2: 1 turn, -1: 2, 0: 4, 1+: 8.
+  const LEVEL_COOLDOWNS = { "-2": 1, "-1": 2, "0": 4, "1": 8, "2": 8 };
+  const cooldown = LEVEL_COOLDOWNS[String(session.nudgeLevel)] ?? 4;
   if (session.turnCounter - session.lastNudgeTurn < cooldown) return messages;
 
   // On first call, process all existing tool calls to build history
