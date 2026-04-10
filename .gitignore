@@ -1,15 +1,19 @@
 .DS_Store
 node_modules/
-
-# Generated patched CLI (legacy approach)
-bin/claude-rewind.js
-bin/vendor
-
-# Vendor: users must supply their own cli.js from npm (legacy)
-vendor/cli-original.js
-vendor/bin-vendor/
-vendor/package-original.json
-vendor/sdk-tools.d.ts
-
-# Telemetry logs
 logs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Large data files (reproducible from HuggingFace + labeling pipeline)
+data/
+
+# PyTorch checkpoints (cnn_weights.json is the portable format)
+proxy/cnn_checkpoint.pt
+proxy/cnn_trimmed_checkpoint.pt
+proxy/cnn_streak_checkpoint.pt
+
+# Derived benchmark output
+proxy/benchmark_summary.json
