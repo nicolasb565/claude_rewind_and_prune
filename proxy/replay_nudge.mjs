@@ -232,7 +232,7 @@ console.log();
 // ── Spawn claude ──────────────────────────────────────────────────────────────
 
 const claudeArgs = ["--resume", sessionId, "--print", nudgeText,
-                    "--output-format", "stream-json"];
+                    "--output-format", "stream-json", "--verbose"];
 
 if (dryRun) {
   console.log(`Would run (from ${sessionCwd}):`);
