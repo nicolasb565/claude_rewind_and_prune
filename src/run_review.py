@@ -4,6 +4,9 @@ Reads items from data/review/batches/ (Sonnet) or data/review/escalated/ (Opus),
 submits them in sub-batches of SUBBATCH_SIZE windows per API call, with up to
 MAX_WORKERS concurrent calls. Writes results to data/review/results/{model}/.
 
+Uses `claude -p` (Claude Code CLI) rather than the Anthropic Python SDK, so no
+API key or extra dependencies are required beyond a logged-in claude install.
+
 Usage:
   python src/run_review.py sonnet [<source>]   # review pending Sonnet batches
   python src/run_review.py opus   [<source>]   # review pending Opus batches
@@ -17,8 +20,6 @@ import re
 import sys
 from pathlib import Path
 
-import anthropic
-
 BATCHES_DIR  = 'data/review/batches'
 ESCALATE_DIR = 'data/review/escalated'
 RESULTS_BASE = 'data/review/results'
@@ -26,8 +27,8 @@ RESULTS_BASE = 'data/review/results'
 SUBBATCH_SIZE = 15
 MAX_WORKERS   = 10
 
-SONNET_MODEL  = 'claude-sonnet-4-6'
-OPUS_MODEL    = 'claude-opus-4-6'
+SONNET_MODEL  = 'sonnet'
+OPUS_MODEL    = 'opus'
 
 SYSTEM_PROMPT = """You are reviewing windows of Claude Code tool-call sequences to determine
 whether the agent is stuck in a loop or making genuine progress.
@@ -100,29 +101,34 @@ def parse_response(text, items):
     return [{'id': it['id'], 'label': 'UNCLEAR', 'reason': 'parse error'} for it in items]
 
 
-async def review_subbatch(client, items, model, semaphore):
+async def review_subbatch(items, model, semaphore):
     async with semaphore:
         prompt = '\n\n---\n\n'.join(format_window(it) for it in items)
         try:
-            response = await asyncio.to_thread(
-                client.messages.create,
-                model=model,
-                max_tokens=1024,
-                system=SYSTEM_PROMPT,
-                messages=[{'role': 'user', 'content': prompt}],
+            proc = await asyncio.create_subprocess_exec(
+                'claude', '-p', prompt,
+                '--model', model,
+                '--system-prompt', SYSTEM_PROMPT,
+                '--output-format', 'json',
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            text = response.content[0].text
+            stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                raise RuntimeError(stderr.decode().strip() or stdout.decode()[:200])
+            # --output-format json wraps response in {"result": "..."}
+            outer = json.loads(stdout.decode())
+            text = outer.get('result', stdout.decode())
             results = parse_response(text, items)
-            # Ensure all ids are present; fill missing with UNCLEAR
             result_map = {r['id']: r for r in results}
             return [result_map.get(it['id'], {'id': it['id'], 'label': 'UNCLEAR', 'reason': 'missing from response'})
                     for it in items]
         except Exception as e:
-            print(f"  API error: {e}")
-            return [{'id': it['id'], 'label': 'UNCLEAR', 'reason': f'api error: {e}'} for it in items]
+            print(f"  CLI error: {e}")
+            return [{'id': it['id'], 'label': 'UNCLEAR', 'reason': f'cli error: {e}'} for it in items]
 
 
-async def process_batch_file(client, batch_path, out_path, model, semaphore):
+async def process_batch_file(batch_path, out_path, model, semaphore):
     items = []
     with open(batch_path) as f:
         for line in f:
@@ -135,7 +141,7 @@ async def process_batch_file(client, batch_path, out_path, model, semaphore):
 
     # Split into sub-batches of SUBBATCH_SIZE
     subbatches = [items[i:i+SUBBATCH_SIZE] for i in range(0, len(items), SUBBATCH_SIZE)]
-    tasks = [review_subbatch(client, sb, model, semaphore) for sb in subbatches]
+    tasks = [review_subbatch(sb, model, semaphore) for sb in subbatches]
     results_nested = await asyncio.gather(*tasks)
     results = [r for sublist in results_nested for r in sublist]
 
@@ -148,8 +154,6 @@ async def process_batch_file(client, batch_path, out_path, model, semaphore):
 
 
 async def run(mode, source_filter=None, sample_n=None):
-    client = anthropic.Anthropic()
-
     if mode == 'sonnet':
         in_dir   = BATCHES_DIR
         model    = SONNET_MODEL
@@ -214,7 +218,7 @@ async def run(mode, source_filter=None, sample_n=None):
     tasks = []
     for fname, path in new_batch_files:
         out_path = os.path.join(out_dir, fname)
-        tasks.append(process_batch_file(client, path, out_path, model, semaphore))
+        tasks.append(process_batch_file(path, out_path, model, semaphore))
 
     all_results = await asyncio.gather(*tasks)
 
