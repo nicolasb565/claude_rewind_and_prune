@@ -9,6 +9,10 @@ __pycache__/
 
 # Large data files (reproducible from HuggingFace + labeling pipeline)
 data/
+# Per-source labeled splits and test trajectory list are committed
+!data/sources/
+!data/sources/*_labeled.jsonl.gz
+!data/sources/test_trajectories.txt
 
 # PyTorch checkpoints (cnn_weights.json is the portable format)
 proxy/cnn_checkpoint.pt

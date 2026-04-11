@@ -10,8 +10,13 @@ Usage:
 
 Reads:  data/separate/nlile_parquet/data/*.parquet
         data/separate/dataclaw/woctordho/conversations.jsonl
-Writes: data/cc_labeled.jsonl      (STUCK + PRODUCTIVE windows)
-        data/cc_unclear_batches/   (UNCLEAR for Sonnet review)
+Writes: data/sources/nlile_labeled.jsonl      (STUCK + PRODUCTIVE windows)
+        data/sources/dataclaw_labeled.jsonl
+        data/cc_unclear_batches/              (UNCLEAR for Sonnet review)
+
+After Sonnet review, run:
+    python src/review_unclear.py merge-sonnet
+    python src/merge_sources.py --force
 """
 
 import json
@@ -27,7 +32,7 @@ from abstract_trajectory import (
 )
 from parse_dataclaw import parse_dataclaw_session, has_outputs
 
-LABELED_FILE = 'data/cc_labeled.jsonl'
+SOURCES_DIR = 'data/sources'
 UNCLEAR_DIR = 'data/cc_unclear_batches'
 BATCH_SIZE = 50
 
@@ -317,63 +322,55 @@ def process_dataclaw():
     return all_labeled, all_unclear
 
 
-def main():
-    UNCLEAR_WINDOWS_FILE = 'data/cc_unclear_windows.jsonl'
-
+def write_source(name, labeled, unclear):
+    """Write labeled windows to data/sources/{name}_labeled.jsonl and UNCLEAR batches."""
+    os.makedirs(SOURCES_DIR, exist_ok=True)
     os.makedirs(UNCLEAR_DIR, exist_ok=True)
 
-    # Clear old data
-    if os.path.exists(LABELED_FILE):
-        os.remove(LABELED_FILE)
-    if os.path.exists(UNCLEAR_WINDOWS_FILE):
-        os.remove(UNCLEAR_WINDOWS_FILE)
-    for f in os.listdir(UNCLEAR_DIR):
-        os.remove(os.path.join(UNCLEAR_DIR, f))
+    labeled_file = os.path.join(SOURCES_DIR, f'{name}_labeled.jsonl')
+    unclear_windows_file = os.path.join(SOURCES_DIR, f'{name}_unclear_windows.jsonl')
 
-    print("=== Processing nlile ===")
-    nlile_labeled, nlile_unclear = process_nlile()
-    print(f"  Labeled: {len(nlile_labeled)}, Unclear: {len(nlile_unclear)}")
-
-    print("\n=== Processing DataClaw ===")
-    dc_labeled, dc_unclear = process_dataclaw()
-    print(f"  Labeled: {len(dc_labeled)}, Unclear: {len(dc_unclear)}")
-
-    # Combine
-    all_labeled = nlile_labeled + dc_labeled
-    all_unclear = nlile_unclear + dc_unclear
-
-    # Write labeled windows
     labels = Counter()
-    with open(LABELED_FILE, 'w') as f:
-        for w in all_labeled:
+    with open(labeled_file, 'w') as f:
+        for w in labeled:
             labels[w['label']] += 1
             f.write(json.dumps(w) + '\n')
 
-    # Write unclear: full training windows (for merge) and review batches (for Sonnet)
     batch_idx = 0
-    with open(UNCLEAR_WINDOWS_FILE, 'w') as wf:
-        for i in range(0, len(all_unclear), BATCH_SIZE):
-            batch = all_unclear[i:i + BATCH_SIZE]
-            batch_file = os.path.join(UNCLEAR_DIR, f'batch_{batch_idx:04d}.jsonl')
+    with open(unclear_windows_file, 'w') as wf:
+        for i in range(0, len(unclear), BATCH_SIZE):
+            batch = unclear[i:i + BATCH_SIZE]
+            batch_file = os.path.join(UNCLEAR_DIR, f'{name}_batch_{batch_idx:04d}.jsonl')
             with open(batch_file, 'w') as f:
                 for item in batch:
-                    # Save full training window separately (keyed by id)
                     full_window = item.pop('_full_window', {})
                     full_window['unclear_id'] = item['id']
                     wf.write(json.dumps(full_window) + '\n')
-                    # Batch file for Sonnet: no _full_window
                     f.write(json.dumps(item) + '\n')
             batch_idx += 1
-    print(f"Full windows for merge: {UNCLEAR_WINDOWS_FILE}")
 
-    print(f"\n{'='*50}")
-    print(f"Label distribution: {dict(labels)}")
-    print(f"Labeled (STUCK+PRODUCTIVE): {len(all_labeled)} -> {LABELED_FILE}")
-    print(f"UNCLEAR: {len(all_unclear)} -> {batch_idx} batches in {UNCLEAR_DIR}/")
-    total = len(all_labeled) + len(all_unclear)
-    for lbl in ['STUCK', 'PRODUCTIVE']:
-        print(f"  {lbl}: {labels[lbl]} ({labels[lbl]/total*100:.1f}%)")
-    print(f"  UNCLEAR: {len(all_unclear)} ({len(all_unclear)/total*100:.1f}%)")
+    total = len(labeled) + len(unclear)
+    print(f"  {name}: {len(labeled)} labeled "
+          f"(STUCK={labels.get('STUCK',0)}, PROD={labels.get('PRODUCTIVE',0)}), "
+          f"{len(unclear)} UNCLEAR → {batch_idx} batches")
+    print(f"  → {labeled_file}")
+    print(f"  Compress when done: gzip -k {labeled_file}")
+
+
+def main():
+    print("=== Processing nlile ===")
+    nlile_labeled, nlile_unclear = process_nlile()
+    write_source('nlile', nlile_labeled, nlile_unclear)
+
+    print("\n=== Processing DataClaw ===")
+    dc_labeled, dc_unclear = process_dataclaw()
+    write_source('dataclaw', dc_labeled, dc_unclear)
+
+    print(f"\nNext steps:")
+    print(f"  1. Review UNCLEAR batches in {UNCLEAR_DIR}/")
+    print(f"  2. Run: python src/review_unclear.py merge-sonnet <source>")
+    print(f"  3. Compress: gzip -k data/sources/nlile_labeled.jsonl data/sources/dataclaw_labeled.jsonl")
+    print(f"  4. Run: python src/merge_sources.py --force")
 
     # Verify features are populated
     print("\n=== Feature sanity check (sample from labeled) ===")
