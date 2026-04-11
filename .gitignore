@@ -9,9 +9,6 @@ __pycache__/
 
 # Large data files (reproducible from HuggingFace + labeling pipeline)
 data/
-# Compressed train/test splits are small enough to track
-!data/train_windows.jsonl.gz
-!data/test_id.jsonl.gz
 
 # PyTorch checkpoints (cnn_weights.json is the portable format)
 proxy/cnn_checkpoint.pt
