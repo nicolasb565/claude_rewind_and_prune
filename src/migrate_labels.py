@@ -186,6 +186,36 @@ def migrate(sources=None):
                 if fname.startswith(f'{source}_batch_') and fname.endswith('.jsonl'):
                     os.remove(os.path.join(BATCHES_DIR, fname))
 
+        # Correction pass: heuristic-PRODUCTIVE windows that backup says STUCK
+        # are false negatives introduced by v4 feature recomputation shifting
+        # borderline windows across the PRODUCTIVE threshold.  Sonnet is ground
+        # truth so we override them in-place.
+        labeled_file = os.path.join(SOURCES_DIR, f'{source}_labeled.jsonl')
+        if os.path.exists(labeled_file) and prior:
+            corrected = 0
+            windows = []
+            with open(labeled_file) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    w = json.loads(line)
+                    wid = f"{w['trajectory_id']}_w{w['window_start']}"
+                    if (w.get('label_source') == 'heuristic'
+                            and w.get('label') == 'PRODUCTIVE'
+                            and prior.get(wid) == 'STUCK'):
+                        w['label']        = 'STUCK'
+                        w['label_source'] = 'sonnet'
+                        corrected += 1
+                    windows.append(w)
+            if corrected:
+                with open(labeled_file, 'w') as f:
+                    for w in windows:
+                        f.write(json.dumps(w) + '\n')
+                print(f"  Corrected {corrected} heuristic-PRODUCTIVE → STUCK "
+                      f"(backup override)")
+                counts['corrected'] = corrected
+
         total_resolved   += counts['resolved']
         total_escalated  += counts['escalated']
         total_new_sonnet += counts['new_sonnet']
