@@ -23,6 +23,8 @@ const logFile = join(
   `events-${new Date().toISOString().slice(0, 10)}.jsonl`,
 );
 
+const VERBOSE = process.env.VERBOSE === "1";
+
 export function log(type, data) {
   const entry = {
     sessionId,
@@ -34,6 +36,9 @@ export function log(type, data) {
     appendFileSync(logFile, JSON.stringify(entry) + "\n");
   } catch {
     // best-effort
+  }
+  if (VERBOSE) {
+    process.stderr.write("[proxy] " + JSON.stringify(entry) + "\n");
   }
 }
 

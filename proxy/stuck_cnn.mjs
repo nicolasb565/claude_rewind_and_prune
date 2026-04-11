@@ -177,6 +177,13 @@ export function pruneIfStuck(messages, log) {
   // thresholding — they only delay the first detection without suppressing FPs.
   const shouldFire = score >= config.threshold;
 
+  log?.("cnn_score", {
+    turnCount: session.turnCounter,
+    score: +score.toFixed(4),
+    threshold: config.threshold,
+    stuck: shouldFire,
+  });
+
   if (!shouldFire) {
     if (score < NUDGE_RESET_THRESHOLD) session.nudgeLevel = -1; // agent responded, full reset
     return messages;
