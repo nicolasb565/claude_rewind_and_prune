@@ -41,11 +41,12 @@ structures — mixing them adds noise and degrades generalization. The existing
 | `nlile` | parquet (internal) | ~5,000 | Rust 96% | hyperswitch codebase |
 | `dataclaw_claude` | huggingface | 69 | C 40%, C++ 19%, Python 18% | Claude-only filter of woctordho/dataclaw |
 | `masterclass` | huggingface | 141 | Python 56%, HTML 10% | gutenbergpbc/john-masterclass-cc, ML research |
+| `claudeset` | huggingface | 101 | PHP 41%, Java 13%, JS 11%, TS 2.5% | lelouch0110/claudeset-community; filter out 13 synthetic sessions |
 | `work_embedded_c` | labeled_gz | ~2,590 | C (embedded) | proprietary, pre-labeled, no raw sessions |
 
 **Language coverage summary:** Rust (nlile), C/C++ (dataclaw_claude + work_embedded_c),
-Python (dataclaw_claude + masterclass). Missing: Go, TypeScript, Java — need new
-sources when available.
+Python (dataclaw_claude + masterclass), PHP/Java/JS/TS (claudeset). Missing: Go —
+need new sources when available.
 
 **fetch.json for `dataclaw_claude`:**
 ```json
@@ -72,9 +73,26 @@ sources when available.
 }
 ```
 
+**fetch.json for `claudeset`:**
+```json
+{
+  "type": "huggingface",
+  "repo": "lelouch0110/claudeset-community",
+  "split": "train",
+  "parser": "claudeset",
+  "model_filter": ["claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929",
+                   "claude-sonnet-4-6"],
+  "description": "Claude Code sessions — PHP/Java/JS coverage (lelouch0110/claudeset-community)"
+}
+```
+
 The `model_filter` field in fetch.json is an optional allowlist of model strings.
-The orchestrator skips sessions whose `model` field is not in the list. Omit the
-field to accept all sessions (e.g. for sources that are already Claude-only).
+The orchestrator skips sessions whose `model` field is not in the list (filters out
+`<synthetic>` and any non-Claude entries). Omit the field to accept all sessions.
+
+The `claudeset` source uses a different schema than `dataclaw` — turns are structured
+as `{type: exchange|compact, user, assistant: {thinking, text, tool_calls}}` with
+`tool_calls: [{tool, input, output}]`. Requires its own parser (`parse_claudeset.py`).
 
 ---
 
