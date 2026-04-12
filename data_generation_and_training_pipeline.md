@@ -222,6 +222,37 @@ re-label.
 - Python splits on commas, maps `P→PRODUCTIVE`, `S→STUCK`, `U→UNSURE`
 - Validates `len(labels) == n_steps` before writing
 
+**Labeling guidance — PRODUCTIVE / STUCK / UNSURE:**
+
+The system prompt defines three labels:
+
+- **PRODUCTIVE** — the step is advancing the work. Exploring new approaches,
+  writing code, reading docs, testing a hypothesis for the first time. The model
+  is making forward progress, even if that includes occasional errors.
+- **STUCK** — the step is part of a recognizable loop. The same command,
+  the same error, the same file edit, repeated without new information or a
+  changed approach. The work has stopped moving forward.
+- **UNSURE** — genuine ambiguity that cannot be resolved from the transcript.
+  Use sparingly. UNSURE is not a default — it is a last resort.
+
+**When in doubt, do not default to PRODUCTIVE or STUCK.** If you cannot tell
+whether a step is advancing work or repeating a failed approach, label it UNSURE.
+UNSURE (encoded as 0.5 during training) provides a calibrated gradient signal
+rather than forcing an incorrect binary label.
+
+**Common patterns:**
+- First attempt at a command → PRODUCTIVE
+- Same command with identical arguments and same error → STUCK (by second or third repeat)
+- Exploring a different file or different approach after an error → PRODUCTIVE
+- Reading a file already read earlier, with no new information → STUCK
+- A pause before a major transition (e.g. reading docs before a big edit) → PRODUCTIVE
+- Compiling/testing in a tight loop with the same failure → STUCK
+
+**Transition labeling:** the first step after entering a stuck loop is
+still PRODUCTIVE; label the step where repetition begins as STUCK.
+The first step after escaping a stuck loop (new approach, new tool, new file)
+is PRODUCTIVE again.
+
 **API strategy:**
 - Uses Anthropic Message Batches API (50% discount, separate rate limits)
 - One batch request per session — Sonnet sees full sequential context
@@ -597,6 +628,29 @@ python src/migrate_features.py data/sources/work_embedded_c_labeled.jsonl.gz --t
 
 `weight` controls oversampling at training time. The training script reads
 this file exclusively — it has no knowledge of sources or filters.
+
+---
+
+## Train/Test Split
+
+Split is **session-level**, not step-level. All steps from a given session go
+entirely into train or entirely into test — this prevents data leakage where
+the model memorizes session-specific patterns rather than generalizing.
+
+**Parameters:** 90% train / 10% test, `random.seed(42)`.
+
+The split is computed by `train.py` at training time from the session IDs in
+the manifest. It is not baked into the `.jsonl` files. This means:
+
+- Adding new sessions to a source and re-merging does not invalidate the split
+  for existing sessions — the same seed maps them to the same partition
+- Session IDs are sorted before splitting to ensure determinism regardless of
+  filesystem ordering
+- The split is logged at training time: total sessions, train sessions, test sessions,
+  STUCK prevalence in each split
+
+**Validation:** `test_training.py` asserts that no session ID appears in both
+the train and test sets.
 
 ---
 
