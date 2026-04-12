@@ -12,22 +12,20 @@ import tempfile
 import zlib
 from datetime import datetime, timezone
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 STEP_FEATURES = [
     "tool_idx",
-    "steps_since_same_tool",
-    "steps_since_same_file",
-    "steps_since_same_cmd",
-    "tool_count_in_window",
-    "file_count_in_window",
-    "cmd_count_in_window",
+    "cmd_hash",
+    "file_hash",
     "output_similarity",
     "has_prior_output",
     "output_length",
     "is_error",
     "step_index_norm",
 ]
+
+_CRC32_NORM = 1.0 / (1 << 32)  # map uint32 → [0, 1)
 
 TOOL_NAMES = ["bash", "edit", "view", "search", "create", "submit", "other"]
 TOOL_TO_IDX = {t: i for i, t in enumerate(TOOL_NAMES)}
@@ -100,21 +98,6 @@ def _jaccard(current_set: frozenset, previous_set: frozenset | None) -> float:
     return len(current_set & previous_set) / len(union) if union else 1.0
 
 
-def _steps_since(value, history: list) -> int:
-    if value is None:
-        return len(history)
-    for j in range(len(history) - 1, -1, -1):
-        if history[j] == value:
-            return len(history) - j
-    return len(history)
-
-
-def _count_in(value, history: list) -> int:
-    if value is None:
-        return 0
-    return sum(1 for h in history if h == value)
-
-
 def _has_error_indicators(output: str) -> bool:
     if not output:
         return False
@@ -141,11 +124,7 @@ def compute_step_features(steps: list[dict]) -> list[dict]:
 
     total_steps = len(steps)
     result = []
-
-    tool_history: list = []
-    file_hash_history: list = []
-    cmd_hash_history: list = []
-    output_history: dict = {}
+    output_history: dict = {}  # cmd_hash_int → output_set, for output_similarity
 
     for i, step in enumerate(steps):
         tool = step.get("tool", "other")
@@ -156,13 +135,18 @@ def compute_step_features(steps: list[dict]) -> list[dict]:
         cmd = step.get("cmd", "")
         output = step.get("output", "")
 
-        file_hash = zlib.crc32(file_path.encode()) if file_path else None
+        # Compute hashes as unsigned 32-bit integers for identity comparisons
+        file_hash_int = zlib.crc32(file_path.encode()) & 0xFFFFFFFF if file_path else None
         if tool == "bash" and cmd:
             cmd_key = _cmd_semantic_key(cmd)
-            cmd_hash = zlib.crc32(cmd_key.encode()) if cmd_key else None
+            cmd_hash_int = (
+                zlib.crc32(cmd_key.encode()) & 0xFFFFFFFF if cmd_key else None
+            )
         else:
             cmd_key = f"{tool}:{cmd}" if cmd else None
-            cmd_hash = zlib.crc32(cmd_key.encode()) if cmd_key else None
+            cmd_hash_int = (
+                zlib.crc32(cmd_key.encode()) & 0xFFFFFFFF if cmd_key else None
+            )
 
         output = _strip_system_reminders(output)
 
@@ -173,37 +157,23 @@ def compute_step_features(steps: list[dict]) -> list[dict]:
             output_sim = 0.0
         else:
             output_set = _normalize_to_set(output)
-            has_prior = output_history.get(cmd_hash) is not None
-            output_sim = _jaccard(output_set, output_history.get(cmd_hash))
-
-        norm = max(total_steps, 1)
+            has_prior = output_history.get(cmd_hash_int) is not None
+            output_sim = _jaccard(output_set, output_history.get(cmd_hash_int))
 
         feat = {
             "tool_idx": TOOL_TO_IDX[tool],
-            "steps_since_same_tool": float(_steps_since(tool, tool_history)) / norm,
-            "steps_since_same_file": float(_steps_since(file_hash, file_hash_history))
-            / norm,
-            "steps_since_same_cmd": float(_steps_since(cmd_hash, cmd_hash_history))
-            / norm,
-            "tool_count_in_window": float(_count_in(tool, tool_history))
-            / max(i + 1, 1),
-            "file_count_in_window": float(_count_in(file_hash, file_hash_history))
-            / max(i + 1, 1),
-            "cmd_count_in_window": float(_count_in(cmd_hash, cmd_hash_history))
-            / max(i + 1, 1),
+            "cmd_hash": float(cmd_hash_int * _CRC32_NORM) if cmd_hash_int is not None else 0.0,
+            "file_hash": float(file_hash_int * _CRC32_NORM) if file_hash_int is not None else 0.0,
             "output_similarity": float(output_sim),
             "has_prior_output": 1.0 if has_prior else 0.0,
-            "output_length": float(math.log1p(output.count("\n") + 1 if output else 0)),
+            "output_length": float(math.log1p(output.count("\n"))),
             "is_error": 1.0 if _has_error_indicators(output) else 0.0,
             "step_index_norm": float(i) / float(max(total_steps - 1, 1)),
         }
         result.append(feat)
 
-        tool_history.append(tool)
-        file_hash_history.append(file_hash)
-        cmd_hash_history.append(cmd_hash)
-        if cmd_hash is not None and not is_edit_tool:
-            output_history[cmd_hash] = output_set
+        if cmd_hash_int is not None and not is_edit_tool:
+            output_history[cmd_hash_int] = output_set
 
     return result
 

@@ -3,7 +3,7 @@
 import json
 import os
 
-SCHEMA_VERSION = 2  # must match extract_features.py
+from src.pipeline.extract_features import SCHEMA_VERSION
 
 _LABEL_ENCODING = {
     "PRODUCTIVE": 0.0,
@@ -69,7 +69,12 @@ def merge_session(
     rows_written = 0
     with open(out_path, "a", encoding="utf-8") as f:
         for i, (feat, label_str) in enumerate(zip(steps, labels)):
-            label_val = _LABEL_ENCODING.get(label_str, 0.0)
+            if label_str not in _LABEL_ENCODING:
+                raise ValueError(
+                    f"Unknown label string {label_str!r} at step {i} — "
+                    f"expected one of {list(_LABEL_ENCODING)}"
+                )
+            label_val = _LABEL_ENCODING[label_str]
             row = {"session_id": session_id, "step": i}
             row.update(feat)
             row["label"] = label_val

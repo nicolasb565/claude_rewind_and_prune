@@ -1,8 +1,9 @@
-"""Train per-step MLP for stuck detection using the new data format.
+"""Train per-step MLP v5 for stuck detection using N-step history ring buffer.
 
 Input: training_manifest.json (list of JSONL files with weights)
 Data format: per-step JSONL rows (each row has all STEP_FEATURES + label + session_id)
-Architecture: per-step MLP (v5) — tool_embed(4) + 11 continuous → fc(32) → relu → fc(16) → relu → fc(1) → sigmoid
+Architecture: v5 — MLP over [current_features(8) + prev_features×5(40) + prev_scores×5(5)]
+              Linear(53,64) → ReLU → Linear(64,32) → ReLU → Linear(32,1) → sigmoid
 
 Usage:
   python train.py [--manifest training_manifest.json]
@@ -12,6 +13,7 @@ import json
 import os
 import random
 import sys
+from collections import defaultdict
 
 import numpy as np
 import torch
@@ -21,17 +23,12 @@ from torch.utils.data import DataLoader, Dataset
 SEED = 42
 MODEL_DIR = "proxy"
 
-NUM_TOOLS = 7
-TOOL_EMBED_DIM = 4
+N_HISTORY = 5
 
 STEP_FEATURES = [
     "tool_idx",
-    "steps_since_same_tool",
-    "steps_since_same_file",
-    "steps_since_same_cmd",
-    "tool_count_in_window",
-    "file_count_in_window",
-    "cmd_count_in_window",
+    "cmd_hash",
+    "file_hash",
     "output_similarity",
     "has_prior_output",
     "output_length",
@@ -39,45 +36,88 @@ STEP_FEATURES = [
     "step_index_norm",
 ]
 
-CONTINUOUS_FEATURES = [f for f in STEP_FEATURES if f != "tool_idx"]
-NUM_CONTINUOUS = len(CONTINUOUS_FEATURES)  # 16
+NUM_FEATURES = len(STEP_FEATURES)  # 8
+INPUT_DIM = NUM_FEATURES * (1 + N_HISTORY) + N_HISTORY  # 53
 
 
-class StuckDetectorMLP(nn.Module):
-    """Per-step MLP: tool_embed + 11 continuous → fc(32) → relu → fc(16) → relu → fc(1)."""
+class StuckDetectorV5(nn.Module):
+    """Per-step MLP with N-step history ring buffer.
+
+    Input: [current_features(8), prev×5_features(40), prev×5_scores(5)] = 53 floats
+    Architecture: Linear(53,64) → ReLU → Linear(64,32) → ReLU → Linear(32,1)
+    """
 
     def __init__(self):
         super().__init__()
-        self.tool_embed = nn.Embedding(NUM_TOOLS, TOOL_EMBED_DIM)
-        in_dim = TOOL_EMBED_DIM + NUM_CONTINUOUS
-        self.fc1 = nn.Linear(in_dim, 32)
-        self.fc2 = nn.Linear(32, 16)
-        self.fc3 = nn.Linear(16, 1)
+        self.fc1 = nn.Linear(INPUT_DIM, 64)
+        self.fc2 = nn.Linear(64, 32)
+        self.fc3 = nn.Linear(32, 1)
 
-    def forward(self, tool_idx: torch.Tensor, cont: torch.Tensor) -> torch.Tensor:
-        emb = self.tool_embed(tool_idx)
-        x = torch.cat([emb, cont], dim=-1)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
         return self.fc3(x).squeeze(-1)
 
 
 class StepDataset(Dataset):
-    def __init__(self, rows: list[dict]):
-        self.tool_idxs = torch.tensor([r["tool_idx"] for r in rows], dtype=torch.long)
-        self.cont = torch.tensor(
-            [[float(r[f]) for f in CONTINUOUS_FEATURES] for r in rows],
-            dtype=torch.float32,
-        )
-        self.labels = torch.tensor(
-            [float(r["label"]) for r in rows], dtype=torch.float32
-        )
+    def __init__(self, inputs: np.ndarray, labels: np.ndarray):
+        self.inputs = torch.tensor(inputs, dtype=torch.float32)
+        self.labels = torch.tensor(labels, dtype=torch.float32)
 
     def __len__(self) -> int:
         return len(self.labels)
 
-    def __getitem__(self, i: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        return self.tool_idxs[i], self.cont[i], self.labels[i]
+    def __getitem__(self, i: int) -> tuple[torch.Tensor, torch.Tensor]:
+        return self.inputs[i], self.labels[i]
+
+
+def build_sequences(
+    rows_by_session: dict[str, list[dict]],
+) -> tuple[np.ndarray, np.ndarray, list[str]]:
+    """Build (input_53, label) pairs for all steps with ring-buffer history.
+
+    For each step T the input is:
+      [features_T, features_T-1, ..., features_T-5, score_T-1, ..., score_T-5]
+
+    History positions are zero-padded at the start of each session.
+    Previous scores use the soft label (0.0/0.5/1.0) as a proxy for the model's
+    own ring-buffer score at inference time.
+
+    Returns:
+        inputs: float32 array of shape (n_steps, INPUT_DIM)
+        labels: float32 array of shape (n_steps,)
+        session_ids: list of session_id strings, one per step
+    """
+    all_inputs: list[np.ndarray] = []
+    all_labels: list[float] = []
+    all_session_ids: list[str] = []
+
+    for sid in sorted(rows_by_session.keys()):
+        rows = sorted(rows_by_session[sid], key=lambda r: r["step"])
+
+        feat_buf = np.zeros((N_HISTORY, NUM_FEATURES), dtype=np.float32)
+        score_buf = np.zeros(N_HISTORY, dtype=np.float32)
+
+        for row in rows:
+            curr = np.array([float(row[f]) for f in STEP_FEATURES], dtype=np.float32)
+
+            # [current(8), prev_T-1(8), ..., prev_T-5(8), score_T-1, ..., score_T-5]
+            inp = np.concatenate([curr, feat_buf.flatten(), score_buf])
+            all_inputs.append(inp)
+            all_labels.append(float(row["label"]))
+            all_session_ids.append(sid)
+
+            # Shift ring buffer: roll down, overwrite position 0 with most recent
+            feat_buf = np.roll(feat_buf, 1, axis=0)
+            feat_buf[0] = curr
+            score_buf = np.roll(score_buf, 1)
+            score_buf[0] = float(row["label"])
+
+    return (
+        np.array(all_inputs, dtype=np.float32),
+        np.array(all_labels, dtype=np.float32),
+        all_session_ids,
+    )
 
 
 def load_manifest(manifest_path: str) -> list[dict]:
@@ -100,40 +140,38 @@ def load_rows_from_jsonl(path: str) -> list[dict]:
 def session_split(
     rows: list[dict],
     test_fraction: float = 0.1,
-) -> tuple[list[dict], list[dict]]:
+) -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
     """Split rows by session_id (90/10 split).
 
-    Args:
-        rows: list of step dicts with session_id
-        test_fraction: fraction of sessions for test set
-
     Returns:
-        (train_rows, test_rows)
+        (train_by_session, test_by_session) dicts mapping session_id → rows
     """
-    session_ids = sorted({r["session_id"] for r in rows})
+    rows_by_session: dict[str, list[dict]] = defaultdict(list)
+    for r in rows:
+        rows_by_session[r["session_id"]].append(r)
+
+    session_ids = sorted(rows_by_session.keys())
     rng = random.Random(SEED)
     rng.shuffle(session_ids)
 
     n_test = max(1, int(len(session_ids) * test_fraction))
-    test_sessions = set(session_ids[:n_test])
-    train_sessions = set(session_ids[n_test:])
+    test_ids = set(session_ids[:n_test])
+    train_ids = set(session_ids[n_test:])
 
-    train_rows = [r for r in rows if r["session_id"] in train_sessions]
-    test_rows = [r for r in rows if r["session_id"] in test_sessions]
+    train_by_session = {sid: rows_by_session[sid] for sid in train_ids}
+    test_by_session = {sid: rows_by_session[sid] for sid in test_ids}
 
-    n_train = len(train_sessions)
-    n_test_s = len(test_sessions)
-
-    train_stuck = sum(1 for r in train_rows if r["label"] >= 0.9) / max(
-        len(train_rows), 1
-    )
+    # Print split stats
+    train_rows = [r for rows in train_by_session.values() for r in rows]
+    test_rows = [r for rows in test_by_session.values() for r in rows]
+    train_stuck = sum(1 for r in train_rows if r["label"] >= 0.9) / max(len(train_rows), 1)
     test_stuck = sum(1 for r in test_rows if r["label"] >= 0.9) / max(len(test_rows), 1)
 
-    print(f"Train/test split: {n_train} sessions train, {n_test_s} sessions test")
+    print(f"Train/test split: {len(train_ids)} sessions train, {len(test_ids)} sessions test")
     print(f"  Train STUCK prevalence: {train_stuck * 100:.1f}%")
     print(f"  Test  STUCK prevalence: {test_stuck * 100:.1f}%")
 
-    return train_rows, test_rows
+    return train_by_session, test_by_session
 
 
 def metrics_at(
@@ -171,7 +209,6 @@ def train(  # pylint: disable=too-many-statements,too-many-locals,too-many-branc
             print(f"  WARNING: {path} not found, skipping")
             continue
         rows = load_rows_from_jsonl(path)
-        # Oversample by weight (round to nearest int)
         copies = max(1, int(round(weight)))
         all_rows.extend(rows * copies)
         print(f"  {path}: {len(rows)} rows × {copies} = {len(rows) * copies}")
@@ -180,39 +217,49 @@ def train(  # pylint: disable=too-many-statements,too-many-locals,too-many-branc
         print("ERROR: no data loaded", file=sys.stderr)
         sys.exit(1)
 
-    train_rows, test_rows = session_split(all_rows)
+    train_by_session, test_by_session = session_split(all_rows)
 
-    # Shuffle training rows
-    random.shuffle(train_rows)
+    train_inputs, train_labels, _ = build_sequences(train_by_session)
+    test_inputs, test_labels, _ = build_sequences(test_by_session)
 
-    train_ds = StepDataset(train_rows)
-    test_ds = StepDataset(test_rows)
+    # Shuffle training sequences (across sessions — ring buffer already baked in)
+    perm = np.random.permutation(len(train_inputs))
+    train_inputs = train_inputs[perm]
+    train_labels = train_labels[perm]
 
-    # Normalize continuous features using training stats
-    mean = train_ds.cont.mean(dim=0)
-    std = train_ds.cont.std(dim=0).clamp(min=1e-6)
-    train_ds.cont = (train_ds.cont - mean) / std
-    test_ds.cont = (test_ds.cont - mean) / std
+    # Normalize feature dims only — score dims (last N_HISTORY positions) are left
+    # in [0, 1] so inference values (continuous sigmoid outputs) are not shifted
+    # by training-set stats derived from trimodal {0, 0.5, 1} labels.
+    feat_dims = INPUT_DIM - N_HISTORY
+    mean = np.zeros(INPUT_DIM, dtype=np.float32)
+    std = np.ones(INPUT_DIM, dtype=np.float32)
+    mean[:feat_dims] = train_inputs[:, :feat_dims].mean(axis=0)
+    std[:feat_dims] = train_inputs[:, :feat_dims].std(axis=0).clip(min=1e-6)
+    train_inputs = (train_inputs - mean) / std
+    test_inputs = (test_inputs - mean) / std
 
-    num_pos = (train_ds.labels >= 0.9).sum().item()
-    num_neg = len(train_ds.labels) - num_pos
+    train_ds = StepDataset(train_inputs, train_labels)
+    test_ds = StepDataset(test_inputs, test_labels)
+
+    num_pos = int((train_labels >= 0.9).sum())
+    num_neg = len(train_labels) - num_pos
     pos_weight = torch.tensor([num_neg / max(num_pos, 1)])
     print(
-        f"  Class balance: pos={int(num_pos)} neg={int(num_neg)} pos_weight={pos_weight.item():.1f}"
+        f"  Class balance: pos={num_pos} neg={num_neg} pos_weight={pos_weight.item():.1f}"
     )
 
     train_loader = DataLoader(train_ds, batch_size=512, shuffle=True)
     test_loader = DataLoader(test_ds, batch_size=1024)
 
-    model = StuckDetectorMLP()
+    model = StuckDetectorV5()
     total_params = sum(p.numel() for p in model.parameters())
     print(f"\nModel: {total_params} params")
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
-    best_f1 = 0.0
-    best_state = None
+    best_f1 = -1.0
+    best_state = {k: v.clone() for k, v in model.state_dict().items()}
     no_improve = 0
     patience = 5
     threshold = 0.5
@@ -222,26 +269,24 @@ def train(  # pylint: disable=too-many-statements,too-many-locals,too-many-branc
         model.train()
         total_loss = 0.0
         n_batches = 0
-        for tool_idx, cont, lab in train_loader:
-            logits = model(tool_idx, cont)
+        for inp, lab in train_loader:
+            optimizer.zero_grad()
+            logits = model(inp)
             loss = criterion(logits, lab)
             loss.backward()
             optimizer.step()
-            optimizer.zero_grad()
             total_loss += loss.item()
             n_batches += 1
 
         model.eval()
         all_s, all_l = [], []
         with torch.no_grad():
-            for tool_idx, cont, lab in test_loader:
-                s = torch.sigmoid(model(tool_idx, cont))
+            for inp, lab in test_loader:
+                s = torch.sigmoid(model(inp))
                 all_s.extend(s.numpy())
                 all_l.extend(lab.numpy())
         scores = np.array(all_s)
-        labels_arr = np.array(all_l)
-        # Binarize soft labels for metric computation
-        binary_labels = (labels_arr >= 0.9).astype(int)
+        binary_labels = (np.array(all_l) >= 0.9).astype(int)
         prec, rec, f1, tp, fp, fn, _ = metrics_at(scores, binary_labels, threshold)
         print(
             f"  Epoch {epoch:2d}: loss={total_loss/n_batches:.4f}  "
@@ -264,8 +309,8 @@ def train(  # pylint: disable=too-many-statements,too-many-locals,too-many-branc
     model.eval()
     all_s, all_l = [], []
     with torch.no_grad():
-        for tool_idx, cont, lab in test_loader:
-            s = torch.sigmoid(model(tool_idx, cont))
+        for inp, lab in test_loader:
+            s = torch.sigmoid(model(inp))
             all_s.extend(s.numpy())
             all_l.extend(lab.numpy())
     scores = np.array(all_s)
@@ -311,41 +356,41 @@ def train(  # pylint: disable=too-many-statements,too-many-locals,too-many-branc
     torch.save(
         {
             "model_state": model.state_dict(),
-            "norm_mean": mean.numpy().tolist(),
-            "norm_std": std.numpy().tolist(),
+            "norm_mean": mean.tolist(),
+            "norm_std": std.tolist(),
             "threshold": threshold,
             "metrics": final_metrics,
             "total_params": total_params,
         },
-        os.path.join(MODEL_DIR, "cnn_trimmed_checkpoint.pt"),
+        os.path.join(MODEL_DIR, "stuck_checkpoint.pt"),
     )
 
     weights = {}
     for name, param in model.named_parameters():
         weights[name] = param.detach().cpu().numpy().tolist()
-    weights["norm_mean"] = mean.numpy().tolist()
-    weights["norm_std"] = std.numpy().tolist()
-    with open(os.path.join(MODEL_DIR, "cnn_weights.json"), "w", encoding="utf-8") as f:
+    weights["norm_mean"] = mean.tolist()
+    weights["norm_std"] = std.tolist()
+    with open(os.path.join(MODEL_DIR, "stuck_weights.json"), "w", encoding="utf-8") as f:
         json.dump(weights, f)
 
     config = {
         "threshold": threshold,
         "model_stage": 5,
+        "n_history": N_HISTORY,
+        "num_features": NUM_FEATURES,
+        "input_dim": INPUT_DIM,
         "total_params": total_params,
         "metrics": final_metrics,
-        "tool_embed_dim": TOOL_EMBED_DIM,
-        "num_continuous": NUM_CONTINUOUS,
-        "continuous_features": CONTINUOUS_FEATURES,
         "step_features": STEP_FEATURES,
     }
-    with open(os.path.join(MODEL_DIR, "cnn_config.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(MODEL_DIR, "stuck_config.json"), "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
 
-    size = os.path.getsize(os.path.join(MODEL_DIR, "cnn_weights.json"))
+    size = os.path.getsize(os.path.join(MODEL_DIR, "stuck_weights.json"))
     print("\nSaved:")
-    print(f"  {MODEL_DIR}/cnn_trimmed_checkpoint.pt")
-    print(f"  {MODEL_DIR}/cnn_weights.json ({size / 1024:.1f} KB)")
-    print(f"  {MODEL_DIR}/cnn_config.json")
+    print(f"  {MODEL_DIR}/stuck_checkpoint.pt")
+    print(f"  {MODEL_DIR}/stuck_weights.json ({size / 1024:.1f} KB)")
+    print(f"  {MODEL_DIR}/stuck_config.json")
 
 
 if __name__ == "__main__":

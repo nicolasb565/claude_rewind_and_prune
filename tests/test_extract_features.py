@@ -73,6 +73,33 @@ class TestComputeStepFeatures:
         feats = compute_step_features([])
         assert feats == []
 
+    def test_output_length_empty_is_zero(self):
+        """Empty output must produce output_length=0.0 (log1p(0) = 0)."""
+        steps = [{"tool": "bash", "tool_name": "Bash", "cmd": "ls", "file": None,
+                  "output": "", "thinking": ""}]
+        feats = compute_step_features(steps)
+        assert feats[0]["output_length"] == 0.0
+
+    def test_output_length_is_log1p_of_lines(self):
+        """output_length must be log1p(n_newlines), not log1p(n_newlines + 1).
+
+        Bug: formula was log1p(lines + 1) which gives log(lines + 2) — off by one
+        inside the log. A 1-line output (0 newlines) should give log1p(0)=0, not
+        log1p(1)=0.693.
+        """
+        import math
+        # 1-line output: 0 newlines → log1p(0) = 0.0
+        steps_1line = [{"tool": "bash", "tool_name": "Bash", "cmd": "ls", "file": None,
+                        "output": "one line", "thinking": ""}]
+        feats = compute_step_features(steps_1line)
+        assert feats[0]["output_length"] == pytest.approx(math.log1p(0), abs=1e-6)
+
+        # 3-line output: 2 newlines → log1p(2) ≈ 1.099
+        steps_3line = [{"tool": "bash", "tool_name": "Bash", "cmd": "ls", "file": None,
+                        "output": "line1\nline2\nline3", "thinking": ""}]
+        feats = compute_step_features(steps_3line)
+        assert feats[0]["output_length"] == pytest.approx(math.log1p(2), abs=1e-6)
+
     def test_is_error_detected(self):
         steps = [
             {

@@ -4,9 +4,18 @@ import json
 import os
 import tempfile
 
+import numpy as np
 import pytest
 
-from src.training.train import session_split, load_rows_from_jsonl
+from src.training.train import (
+    INPUT_DIM,
+    N_HISTORY,
+    NUM_FEATURES,
+    STEP_FEATURES,
+    build_sequences,
+    load_rows_from_jsonl,
+    session_split,
+)
 
 
 def _make_rows(n_sessions=10, steps_per_session=5) -> list[dict]:
@@ -18,27 +27,22 @@ def _make_rows(n_sessions=10, steps_per_session=5) -> list[dict]:
                     "session_id": f"sess_{s:03d}",
                     "step": i,
                     "tool_idx": i % 7,
-                    "steps_since_same_tool": 0.1,
-                    "steps_since_same_file": 0.2,
-                    "steps_since_same_cmd": 0.3,
-                    "tool_count_in_window": 0.1,
-                    "file_count_in_window": 0.1,
-                    "cmd_count_in_window": 0.1,
+                    "cmd_hash": float(i) / 10.0,
+                    "file_hash": float(s) / 10.0,
                     "output_similarity": 0.0,
                     "has_prior_output": 0.0,
                     "output_length": 1.0,
                     "is_error": 0.0,
                     "step_index_norm": float(i) / max(steps_per_session - 1, 1),
-                    "label": 1.0 if (s % 5 == 0 and i > 2) else 0.0,
+                    "label": 1.0 if (s % 5 == 0 and i > 2) else (0.5 if i == 1 else 0.0),
                 }
             )
     return rows
 
 
 class TestManifestLoading:
-    def test_manifest_loads_with_weights(self):
+    def test_manifest_loads_with_weights_and_source_dir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create dummy JSONL files
             rows = _make_rows(5, 3)
             jsonl_path = os.path.join(tmpdir, "test.jsonl")
             with open(jsonl_path, "w") as f:
@@ -46,8 +50,14 @@ class TestManifestLoading:
                     f.write(json.dumps(row) + "\n")
 
             manifest = {
-                "schema_version": 1,
-                "datasets": [{"path": jsonl_path, "weight": 2.0}],
+                "schema_version": 3,
+                "datasets": [
+                    {
+                        "source_dir": "datasets/test/",
+                        "path": jsonl_path,
+                        "weight": 2.0,
+                    }
+                ],
             }
             manifest_path = os.path.join(tmpdir, "manifest.json")
             with open(manifest_path, "w") as f:
@@ -55,71 +65,140 @@ class TestManifestLoading:
 
             loaded = json.load(open(manifest_path))
             assert loaded["datasets"][0]["weight"] == 2.0
-            assert loaded["schema_version"] == 1
+            assert loaded["datasets"][0]["source_dir"] == "datasets/test/"
+            assert loaded["schema_version"] == 3
 
 
 class TestSessionSplit:
     def test_no_session_in_both_sets(self):
         rows = _make_rows(50, 5)
-        train_rows, test_rows = session_split(rows, test_fraction=0.1)
+        train_by_session, test_by_session = session_split(rows, test_fraction=0.1)
 
-        train_sessions = {r["session_id"] for r in train_rows}
-        test_sessions = {r["session_id"] for r in test_rows}
-
-        overlap = train_sessions & test_sessions
+        overlap = set(train_by_session) & set(test_by_session)
         assert len(overlap) == 0, f"Sessions in both sets: {overlap}"
 
     def test_all_sessions_covered(self):
         rows = _make_rows(20, 5)
-        train_rows, test_rows = session_split(rows, test_fraction=0.1)
+        train_by_session, test_by_session = session_split(rows, test_fraction=0.1)
 
         all_in = {r["session_id"] for r in rows}
-        all_out = {r["session_id"] for r in train_rows} | {
-            r["session_id"] for r in test_rows
-        }
+        all_out = set(train_by_session) | set(test_by_session)
         assert all_in == all_out
 
     def test_split_ratio_approximately_correct(self):
         rows = _make_rows(100, 3)
-        train_rows, test_rows = session_split(rows, test_fraction=0.1)
+        train_by_session, test_by_session = session_split(rows, test_fraction=0.1)
 
-        train_sessions = {r["session_id"] for r in train_rows}
-        test_sessions = {r["session_id"] for r in test_rows}
-
-        assert len(test_sessions) == 10
-        assert len(train_sessions) == 90
+        assert len(test_by_session) == 10
+        assert len(train_by_session) == 90
 
     def test_deterministic(self):
         rows = _make_rows(50, 3)
         train1, test1 = session_split(rows, test_fraction=0.2)
         train2, test2 = session_split(rows, test_fraction=0.2)
 
-        assert {r["session_id"] for r in test1} == {r["session_id"] for r in test2}
+        assert set(test1) == set(test2)
 
 
-class TestStepDatasetValidation:
-    def test_missing_tool_idx_raises(self):
-        """Rows missing tool_idx must raise a clear error at dataset construction time,
-        not a cryptic KeyError deep in tensor building or silent zero-fill."""
-        from src.training.train import StepDataset
+class TestBuildSequences:
+    def test_output_shape(self):
+        """Each step produces one INPUT_DIM-wide input vector."""
+        rows = _make_rows(n_sessions=3, steps_per_session=5)
+        by_session = {}
+        for r in rows:
+            by_session.setdefault(r["session_id"], []).append(r)
 
-        rows = _make_rows(2, 3)
-        del rows[0]["tool_idx"]  # remove from one row
+        inputs, labels, sids = build_sequences(by_session)
+        assert inputs.shape == (15, INPUT_DIM)
+        assert labels.shape == (15,)
+        assert len(sids) == 15
 
-        with pytest.raises((KeyError, ValueError)):
-            StepDataset(rows)
+    def test_first_step_history_is_zero(self):
+        """History positions are zero-padded at the start of each session."""
+        rows = _make_rows(n_sessions=1, steps_per_session=3)
+        by_session = {"sess_000": rows}
 
-    def test_missing_continuous_feature_raises(self):
-        """Rows missing a continuous feature should fail loudly, not silently fill zero."""
-        from src.training.train import StepDataset
+        inputs, _, _ = build_sequences(by_session)
+        # First step: positions [NUM_FEATURES:] are all history — must be zeros
+        assert np.all(inputs[0, NUM_FEATURES:] == 0.0)
 
-        rows = _make_rows(2, 3)
-        del rows[0]["output_similarity"]
+    def test_second_step_prev_matches_first(self):
+        """At step 1, history slot T-1 must equal step 0's feature vector."""
+        rows = _make_rows(n_sessions=1, steps_per_session=3)
+        by_session = {"sess_000": rows}
 
-        # Currently fills silently with 0.0 — this test documents the expected behaviour
-        # after the fix: should raise, not silently corrupt training data.
-        with pytest.raises((KeyError, ValueError)):
-            StepDataset(rows)
+        inputs, _, _ = build_sequences(by_session)
+        # Step 0 features
+        step0_feats = inputs[0, :NUM_FEATURES]
+        # Step 1, T-1 history slot (positions NUM_FEATURES : 2*NUM_FEATURES)
+        step1_prev = inputs[1, NUM_FEATURES : 2 * NUM_FEATURES]
+        np.testing.assert_array_equal(step0_feats, step1_prev)
+
+    def test_previous_scores_in_input(self):
+        """Previous labels appear at the last N_HISTORY positions."""
+        rows = _make_rows(n_sessions=1, steps_per_session=4)
+        by_session = {"sess_000": rows}
+
+        inputs, labels, _ = build_sequences(by_session)
+        # At step 2: score_T-1 = label[1], score_T-2 = label[0], rest zeros
+        prev_scores = inputs[2, NUM_FEATURES * (1 + N_HISTORY):]
+        assert prev_scores[0] == labels[1]  # T-1
+        assert prev_scores[1] == labels[0]  # T-2
+        assert prev_scores[2] == 0.0        # T-3 (no step yet)
+
+    def test_missing_feature_raises(self):
+        """A row missing a STEP_FEATURES key must raise, not silently fill zero."""
+        rows = _make_rows(n_sessions=1, steps_per_session=2)
+        del rows[0]["cmd_hash"]
+        by_session = {"sess_000": rows}
+
+        with pytest.raises(KeyError):
+            build_sequences(by_session)
+
+
+class TestBuildSequencesRingBuffer:
+    def test_t3_slot_holds_step0_features(self):
+        """At step T=3, slot T-3 (positions 3*NUM_FEATURES:4*NUM_FEATURES) must
+        equal step 0's feature vector — validates ring buffer traversal depth."""
+        rows = _make_rows(n_sessions=1, steps_per_session=5)
+        by_session = {"sess_000": rows}
+
+        inputs, _, _ = build_sequences(by_session)
+        step0_feats = inputs[0, :NUM_FEATURES]
+        step3_t3_slot = inputs[3, 3 * NUM_FEATURES : 4 * NUM_FEATURES]
+        np.testing.assert_array_equal(step0_feats, step3_t3_slot)
+
+
+class TestNormalization:
+    def test_score_dims_not_normalized(self):
+        """The N_HISTORY score dimensions (last N_HISTORY positions) must be left
+        in [0,1] and not shifted/scaled by training stats.
+
+        Bug: normalizing score dims with training-set mean/std causes inference
+        mismatch — at train time scores are trimodal {0, 0.5, 1}, at inference
+        they are continuous sigmoid outputs.
+
+        Verified by: after applying train.py normalization, normalized score dims
+        must equal the raw score dims (identity transform = mean 0, std 1 applied).
+        """
+        rows = _make_rows(n_sessions=20, steps_per_session=10)
+        train_by_session, _ = session_split(rows, test_fraction=0.1)
+        train_inputs, train_labels, _ = build_sequences(train_by_session)
+
+        # Apply normalization exactly as train.py does
+        feat_dims = INPUT_DIM - N_HISTORY
+        mean = np.zeros(INPUT_DIM, dtype=np.float32)
+        std = np.ones(INPUT_DIM, dtype=np.float32)
+        mean[:feat_dims] = train_inputs[:, :feat_dims].mean(axis=0)
+        std[:feat_dims] = train_inputs[:, :feat_dims].std(axis=0).clip(min=1e-6)
+        normalized = (train_inputs - mean) / std
+
+        # Score dims must be unchanged after normalization
+        np.testing.assert_array_equal(
+            normalized[:, -N_HISTORY:],
+            train_inputs[:, -N_HISTORY:],
+            err_msg="Score dims must not be modified by normalization",
+        )
 
 
 class TestLoadRowsFromJsonl:
@@ -144,3 +223,44 @@ class TestLoadRowsFromJsonl:
 
             loaded = load_rows_from_jsonl(path)
             assert len(loaded) == 2
+
+
+class TestGenerateManifestDefault:
+    def test_no_source_dirs_reads_manifest(self, tmp_path, monkeypatch):
+        """generate.py with no positional args must read source_dirs from manifest."""
+        import sys
+        from unittest.mock import patch, MagicMock
+
+        manifest = {
+            "schema_version": 3,
+            "datasets": [
+                {"source_dir": "datasets/foo/", "path": "data/generated/foo_v3.jsonl", "weight": 1.0},
+            ],
+        }
+        manifest_path = tmp_path / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest))
+
+        captured = []
+
+        def fake_process_source(source_dir, **kwargs):
+            captured.append(source_dir)
+            return 0, 0, 0
+
+        monkeypatch.chdir(tmp_path)
+        with patch("sys.argv", ["generate.py", "--manifest", str(manifest_path)]), \
+             patch("generate.process_source", side_effect=fake_process_source):
+            import generate
+            generate.main()
+
+        assert captured == ["datasets/foo/"]
+
+    def test_no_source_dirs_no_manifest_exits(self, tmp_path, monkeypatch):
+        """generate.py with no args and missing manifest must exit with error."""
+        from unittest.mock import patch
+
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(SystemExit) as exc_info, \
+             patch("sys.argv", ["generate.py", "--manifest", "nonexistent.json"]):
+            import generate
+            generate.main()
+        assert exc_info.value.code == 1

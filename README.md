@@ -1,6 +1,6 @@
 # Context Management for AI Coding Agents
 
-Research into detecting when Claude Code goes in circles — a 2,605-parameter CNN trained on 85K windows of real Claude Code sessions, running entirely in JavaScript inside a local proxy. When the agent gets stuck, the proxy injects a corrective nudge. Language-agnostic, no Python runtime, no patches to Claude Code.
+Research into detecting when Claude Code goes in circles — a 5,569-parameter per-step MLP trained on real Claude Code sessions, running entirely in JavaScript inside a local proxy. When the agent gets stuck, the proxy injects a corrective nudge. Language-agnostic, no Python runtime, no patches to Claude Code.
 
 ## The Problem
 
@@ -13,7 +13,7 @@ On our 13-task benchmark, the worst stuck cases burned 10× more time than a nor
 
 ## HTTP Proxy (`proxy/`)
 
-A local proxy between Claude Code and the Anthropic API. Intercepts requests, scores the recent tool-call history with a CNN, and injects a corrective nudge when stuck is detected. **No patches, no plugins, works with vanilla Claude Code.**
+A local proxy between Claude Code and the Anthropic API. Intercepts requests, scores the recent tool-call history with a per-step MLP, and injects a corrective nudge when stuck is detected. **No patches, no plugins, works with vanilla Claude Code.**
 
 ```
 Claude Code (unmodified)
@@ -23,8 +23,8 @@ Claude Code (unmodified)
     ▼
 Proxy (localhost:8080)
     ├── Parse tool calls from message history
-    ├── Abstract into 10-step sliding windows
-    ├── Score with CNN (pure JS, 56 KB weights)
+    ├── Extract per-step features (8 continuous)
+    ├── Score with per-step MLP + ring buffer (pure JS, ~60 KB weights)
     ├── Inject escalating nudge when stuck detected
     ├── Retry with exponential backoff on 429/529
     └── Forward to api.anthropic.com
@@ -55,7 +55,7 @@ ANTHROPIC_BASE_URL=http://localhost:8080 claude "your prompt"
 
 ### Escalating Nudge
 
-When the CNN fires, it injects a corrective message into the conversation. If the agent stays stuck across multiple cooldown windows, the nudge escalates:
+When the MLP fires, it injects a corrective message into the conversation. If the agent stays stuck across multiple cooldown windows, the nudge escalates:
 
 | Level | Trigger | Behavior |
 |---|---|---|
@@ -63,156 +63,143 @@ When the CNN fires, it injects a corrective message into the conversation. If th
 | 1 (medium) | Still stuck after cooldown | Demands a 3-step explicit diagnosis before the next tool call |
 | 2 (hard) | Still stuck after two cooldowns | STOP directive — no tool calls until root cause is stated |
 
-`nudgeLevel` resets to 0 when the CNN score drops below `STUCK_RESET_THRESHOLD` (default: threshold × 0.94), indicating the agent has responded and moved on.
+`nudgeLevel` resets to 0 when the MLP score drops below `STUCK_RESET_THRESHOLD` (default: threshold × 0.94), indicating the agent has responded and moved on.
 
-## CNN Stuck Detector
+## Per-Step MLP Stuck Detector (v5)
 
-A 2,605-parameter CNN trained on 85,416 labeled windows from real Claude Code sessions. Uses cycle-detection features (CRC32-hashed `base_command:target_file` keys, Jaccard output similarity) that generalize across programming languages, agent scaffolds, and model families.
+A 5,569-parameter per-step MLP trained on ~306K labeled steps from real Claude Code sessions. Uses an N=5 ring buffer of historical features and previous scores — the model sees the current step alongside the 5 preceding steps, giving it direct access to the repetition signal without windowing heuristics.
 
 ### Architecture
 
-- **Input:** 10-step sliding windows of tool calls (stride 5)
-- **Features per step:** 11 continuous (cycle detection, repetition, errors, output similarity) + 7-way tool embedding (4d)
-- **Window-level features:** 5 aggregates (unique tool/file/cmd ratios, error rate, output similarity avg)
-- **Model:** 2 parallel Conv1d branches (kernels 3+5, 16 filters each), max pool, MLP head
-- **Output:** Sigmoid stuck probability
-- **Size:** 56 KB JSON weights, runs in pure JS (no Python, no GPU)
+```
+Input: [features_T(8), features_T-1(8), ..., features_T-5(8), score_T-1, ..., score_T-5]
+       = 8 × 6 + 5 = 53 floats
+
+Linear(53, 64) → ReLU → Linear(64, 32) → ReLU → Linear(32, 1) → Sigmoid
+```
+
+- **Features per step (8):** `tool_idx`, `cmd_hash`, `file_hash`, `output_similarity`, `has_prior_output`, `output_length`, `is_error`, `step_index_norm`
+- **Ring buffer depth:** N=5 (covers 85.4% of observed stuck loops)
+- **Score dims:** Not normalized — left in [0,1] to avoid train/inference mismatch (trimodal {0, 0.5, 1} training labels vs continuous sigmoid at inference)
+- **Size:** ~60 KB JSON weights, runs in pure JS (no Python, no GPU)
 
 ### Results
 
-**Test set** (29,283 windows from held-out trajectories):
+**Test set** (held-out sessions from training data):
 
 | Metric | Value |
 |---|---|
-| Precision | 93.0% |
-| Recall | 93.0% |
-| F1 | 0.930 |
-| Threshold | 0.96 |
-| Weights | 56 KB |
+| Precision | 97.2% |
+| Recall | 95.1% |
+| F1 | 0.961 |
+| Threshold | 0.5 |
+| Parameters | 5,569 |
+| Weights | ~60 KB |
 
-**Benchmark on the LogReg-era task suite** (29 sessions, 6 stuck):
+**Improvement over v4 (windowed CNN):**
 
-| Metric | Value |
-|---|---|
-| Benchmark fires | 2 (02_gcc off_2, 03_llvm off_1 — both genuine) |
-| False positives | 0 on heldout tasks |
+| Model | Architecture | Params | F1 | Recall |
+|---|---|---|---|---|
+| v4 CNN | Conv1d, 10-step windows | 2,605 | 0.908 | 0.859 |
+| v5 MLP (this) | Per-step + ring buffer | 5,569 | 0.961 | 0.951 |
 
-**Held-out tasks** (6 tasks, never seen in training): **all clean**.
+## Data Pipeline
 
-### Data Generation Pipeline
+### Labeling Pipeline
 
 ```
-Claude Code sessions (.jsonl)
+Claude Code sessions (.jsonl from HuggingFace or local)
     │
-    │  python src/label_sessions.py <source> <sessions.jsonl>
+    │  python generate.py [datasets/source_dir/]
     ▼
-Abstract to numeric features (CRC32 semantic key, Jaccard output similarity)
-    │
-    ▼
-Heuristic classifier (high-precision rules)
-    │
-    ├── PRODUCTIVE → data/sources/<source>_labeled.jsonl   (numeric only)
-    └── CANDIDATE  → data/review/batches/<source>_batch_*.jsonl
-                         (includes raw cmd/output snippets for review)
-    │
-    │  [Run Sonnet review agents on batch files]
-    │  python src/review_sonnet.py <source>
-    ▼
-Sonnet decisions
-    ├── PRODUCTIVE → appended to labeled file
-    ├── STUCK      → appended to labeled file
-    └── UNCLEAR    → data/review/escalated/<source>_batch_*.jsonl
-    │
-    │  [Run Opus review agents on escalated files]
-    │  python src/review_opus.py <source>
-    ▼
-Opus decisions
-    ├── PRODUCTIVE / STUCK → appended to labeled file
-    └── UNCLEAR            → dropped (Opus is final arbiter)
+Parse sessions → extract 8 per-step features (schema_version=3)
     │
     ▼
-data/sources/<source>_labeled.jsonl  →  gzip  →  merge_sources.py
+Submit to Anthropic Batch API (claude-sonnet-4-6)
+    │  Parse failures escalate to claude-opus-4-6
+    ▼
+Per-step labels: PRODUCTIVE / STUCK / UNSURE
+    │
+    ▼
+Merge features + labels into JSONL training rows
+    │
+    ▼
+data/generated/<source>_v3.jsonl
 ```
 
-**Privacy guarantee:** The final `.gz` contains only numeric features (tool indices, timing ratios, similarity scores). Raw commands, file paths, output text, and LLM review comments are stripped at the `_full_window` boundary in `label_sessions.py`. Sessions on proprietary codebases can be labeled and contributed without leaking sensitive content.
+**Privacy guarantee:** Only numeric features (tool indices, CRC32 hashes, similarity scores) appear in the final JSONL. Raw commands, file paths, and output text are used only during feature extraction and never written to the training files.
 
 ### Training Pipeline
 
+```bash
+# Generate features and labels for all sources in training_manifest.json
+python generate.py
+
+# Re-extract features without re-labeling (useful after schema changes)
+python generate.py --skip-labeling
+
+# Train the v5 MLP
+python train.py
+
+# Outputs:
+#   proxy/stuck_checkpoint.pt   — PyTorch checkpoint
+#   proxy/stuck_weights.json    — JSON weights for JS inference
+#   proxy/stuck_config.json     — Config + metrics
 ```
-85,416 labeled windows (770 STUCK, all Sonnet-confirmed)
-    │ DataClaw oversampled 5x (physical duplication)
-    ▼
-Train CNN (class-balanced BCEWithLogitsLoss, early stopping on test F1)
-    │  python src/train_cnn_oversample.py
-    ▼
-proxy/cnn_weights.json + proxy/cnn_config.json
+
+`generate.py` reads source directories from `training_manifest.json` by default. Pass one or more positional arguments to override (e.g. `python generate.py datasets/new_source/`).
+
+### `training_manifest.json`
+
+```json
+{
+  "schema_version": 3,
+  "datasets": [
+    {"source_dir": "datasets/nlile/",          "path": "data/generated/nlile_v3.jsonl",          "weight": 1.0},
+    {"source_dir": "datasets/dataclaw_claude/", "path": "data/generated/dataclaw_claude_v3.jsonl", "weight": 1.0},
+    {"source_dir": "datasets/masterclass/",    "path": "data/generated/masterclass_v3.jsonl",    "weight": 1.0},
+    {"source_dir": "datasets/claudeset/",      "path": "data/generated/claudeset_v3.jsonl",      "weight": 1.0}
+  ]
+}
 ```
 
-### Key Innovations
-
-1. **`cmd_semantic_key`** — Extracts `base_command:target_file` from bash commands. `cd build && ./gcc/xgcc -O2 test.c | tail` → `xgcc:test.c`. Makes command-repetition features work across projects without per-project retraining.
-
-2. **Three-tier labeling with mandatory STUCK verification** — Heuristic STUCK labels are never used directly. All 2,606 heuristic-labeled STUCK windows were sent through Sonnet review: 770 confirmed STUCK, 1,815 flipped to PRODUCTIVE (false positives), 21 dropped. Final training labels are 100% LLM-verified for the STUCK class.
-
-3. **Feature ablation to v4** — Left-one-out ablation on 24 feature variants with dual evaluation (labeled test F1 + false positive rate on 4 known-productive sessions). Dropped 2 features:
-   - `thinking_length`: zero in 97.5% of training data (only DataClaw has thinking blocks) — pure noise
-   - `output_diversity` (window-level): redundant with `output_similarity_avg` which already averages per-step Jaccard
-   - Going from 12→11 continuous + 6→5 window features improved F1 from 0.910 → 0.930
-
-4. **DataClaw oversample sweep** — Swept 0x/1x/5x/10x with v4 features. 5x is optimal: F1 0.930, 22 false fires on 4 productive sessions vs 29 at 10x. 10x was tuned for `thinking_length` which is now dropped; without it, the extra DataClaw weight is noise.
-
-5. **Training improvement study (null result)** — Tested validation split, pos_weight from natural distribution, label smoothing (ε=0.1), and threshold tuning sequentially. All four made things worse. At 2,605 parameters and 98K training windows, the model is data-hungry: removing 20% for a val split costs more than unbiased model selection gains. Label smoothing at 0.1 is too aggressive for a 1.2% STUCK rate. The baseline config (full training set, pos_weight from oversampled counts, fixed threshold 0.96) wins on both axes.
-
-6. **Confirmation rules tested** — 2-of-3, 2-consecutive, streak-based, EMA smoothing. None improved on direct thresholding (stuck patterns are short and bursty; multi-window rules mostly hurt recall). The proxy uses direct CNN output at threshold 0.96.
+`weight` controls physical oversampling (integer duplication).
 
 ### Datasets
 
-| Dataset | License | Sessions | Role |
-|---|---|---|---|
-| [nlile/misc-merged](https://huggingface.co/datasets/nlile/misc-merged) | Apache-2.0 | 16,841 | Primary source, no thinking blocks |
-| [DataClaw](https://huggingface.co/datasets/DataClaw) (woctordho) | Apache-2.0 | 136 | Has thinking blocks, oversampled 5x |
-| work_embedded_c | Internal | ~500 | Embedded C sessions, 1x (no oversample) |
+| Dataset | Source | Sessions | Steps | Role |
+|---|---|---|---|---|
+| [nlile/misc-merged](https://huggingface.co/datasets/nlile/misc-merged) | HuggingFace | 4,973 | 295,493 | Primary — broad distribution |
+| [DataClaw](https://huggingface.co/datasets/DataClaw) (woctordho) | HuggingFace | 26 | 1,963 | Thinking blocks |
+| masterclass | HuggingFace | 58 | 5,531 | Mixed sessions |
+| claudeset | HuggingFace | 39 | 2,961 | Mixed sessions |
 
-### Feature Set (11 continuous + tool embed + 5 window-level)
+### Feature Set (8 per-step features)
 
-| Feature | Level | Signal |
-|---|---|---|
-| `steps_since_same_cmd` | Per-step | Core — command repetition via semantic key |
-| `cmd_count_in_window` | Per-step | Core — repetition count within window |
-| `output_similarity` | Per-step | Core — Jaccard on output lines; same result = stuck |
-| `is_error` | Per-step | Errors in loops = stuck, errors alone = debugging |
-| `output_length` | Per-step | Log of output line count |
-| `step_index_norm` | Per-step | Position in trajectory |
-| `tool_count_in_window` | Per-step | Tool repetition frequency |
-| `steps_since_same_tool` | Per-step | Tool type repetition |
-| `steps_since_same_file` | Per-step | File access repetition |
-| `file_count_in_window` | Per-step | File repetition count |
-| `has_prior_output` | Per-step | Whether this command has been run before |
-| `unique_tools_ratio` | Window | Tool diversity across the window |
-| `unique_files_ratio` | Window | File diversity across the window |
-| `unique_cmds_ratio` | Window | Command diversity across the window |
-| `error_rate` | Window | Fraction of steps that produced errors |
-| `output_similarity_avg` | Window | Mean per-step Jaccard across window |
+| Feature | Signal |
+|---|---|
+| `tool_idx` | Tool type (bash/edit/view/search/create/submit/other) |
+| `cmd_hash` | CRC32 of semantic command key (`base_cmd:target_file`), normalized to [0,1) |
+| `file_hash` | CRC32 of file path, normalized to [0,1) |
+| `output_similarity` | Jaccard similarity of current output vs. previous run of same command |
+| `has_prior_output` | Whether this exact command has been run before in the session |
+| `output_length` | `log1p(output_line_count)` |
+| `is_error` | Error indicators in output |
+| `step_index_norm` | Position in session, normalized to [0,1] |
 
-Dropped features: `false_start`, `strategy_change`, `circular_lang`, `self_similarity` (regex patterns, near-dead in training data); `thinking_length` (zero in 97.5% of windows); `output_diversity` (window-level, redundant with `output_similarity_avg`).
-
-**JS forward pass verified:** Pure JS inference matches Python with max diff 6.2e-9 across 100 test vectors. No Node dependencies beyond `node:zlib` for CRC32.
+The ring buffer provides the repetition signal directly: if `cmd_hash` at T equals `cmd_hash` at T-2, the MLP sees identical values in the current features and in history slot T-2. No windowing or aggregation needed.
 
 ## Key Findings
 
-1. **Stuck is detectable with a tiny model.** 2,605 parameters, trained on ~770 real stuck examples (Sonnet-verified), reaches 93% precision / 93% recall on held-out trajectories.
+1. **Per-step with history beats sliding windows.** Moving from a 10-step windowed CNN (2,605 params, F1=0.908) to a per-step MLP with N=5 ring buffer (5,569 params, F1=0.961) improved recall by 9.2 points (0.859→0.951). The ring buffer exposes the repetition signal directly rather than aggregating it away.
 
-2. **The right signals are behavioral, not textual.** Command repetition and output similarity dominate. Thinking-block regex features (`false_start`, `circular_lang`) are either redundant or sparse. The model generalizes because it measures *repetition patterns*, not language or domain.
+2. **Stuck loop analysis.** 65% of observed stuck runs are single-step (the agent repeats one command). N=5 history covers 85.4% of multi-step stuck loops, making it the optimal depth without adding noisy padding for rare deep loops.
 
-3. **Every STUCK label must be LLM-verified.** Heuristic STUCK rules have a ~70% false positive rate — 1,815 of 2,606 heuristic-labeled STUCK windows were actually productive exploration. Direct heuristic labeling is only reliable for PRODUCTIVE (high-diversity, no tight loops). All STUCK training labels go through Sonnet review.
+3. **Score dims must not be normalized.** Training labels are trimodal {0, 0.5, 1}; inference scores are continuous sigmoid outputs. Normalizing the score dims with training-set statistics causes a train/inference mismatch — kept in raw [0,1] space.
 
-4. **DataClaw oversampling: 5x, not 10x.** The 10x rate was chosen when `thinking_length` was a feature, giving DataClaw a structural advantage. Once `thinking_length` is dropped (it's zero in 97.5% of windows), 10x becomes harmful overfit. 5x retains the distribution benefit without the noise amplification.
+4. **CRC32 identity is learnable.** Hash values aren't meaningful as magnitudes, but when the same command appears in consecutive history slots, the MLP sees near-zero differences between those positions — a learnable equality signal without explicit equality features.
 
-5. **Training hyperparameters are saturated.** At this scale (2,605 params, 98K windows), validation splits, label smoothing, pos_weight correction, and threshold tuning all make things worse. The bottleneck is data quality and feature expressiveness, not optimization.
-
-6. **Remaining weakness: productive edit→build→test cycles.** The persistent false positives are agents iterating on test/build failures — structurally identical to stuck loops at the feature level. Fixing this requires tracking output *change* between repeated commands, not just similarity.
-
-7. **We need more Claude Code datasets with thinking blocks.** DataClaw (136 sessions) is currently the only source with extended thinking. 5x oversampling is a workaround — a larger labeled corpus with thinking blocks would move the model further than any architectural change.
+5. **Every STUCK label is LLM-verified.** Sonnet labels parse failures as UNSURE; those escalate to Opus. PRODUCTIVE and STUCK labels are never assigned by heuristic alone.
 
 ## Related Work
 
@@ -230,17 +217,14 @@ Dropped features: `false_start`, `strategy_change`, `circular_lang`, `self_simil
 
 ### What's different about our approach
 
-This work combines: proxy-based interception, tool-call behavioral features, a trained CNN, and corrective nudge injection — all running in pure JavaScript inside the proxy with no Python runtime. The cleanest comparison point is `strongdm/attractor` which uses similar behavioral signals but no ML.
-
-Longer-term, this kind of monitoring belongs inside the model or API — similar to how speculative decoding uses a small draft model alongside the main model. A lightweight "reasoning monitor" model could run in parallel during inference, detecting stuck patterns at the token level before a full stuck episode forms.
+This work combines: proxy-based interception, tool-call behavioral features, a trained per-step MLP with ring buffer history, and corrective nudge injection — all running in pure JavaScript inside the proxy with no Python runtime. The cleanest comparison point is `strongdm/attractor` which uses similar behavioral signals but no ML.
 
 ## Next Steps
 
-1. Collect/label more Claude Code sessions **with thinking blocks** — currently the biggest lever, 5x DataClaw oversampling is only a partial substitute
-2. Add an "output change between repeated commands" feature to break the edit→build→test false positive pattern
-3. Run a 5-run benchmark for statistical significance
-4. Add timestamp-based heuristics in the proxy (fast retries boost stuck score, slow gaps dampen)
-5. Explore a lightweight speculative-decoding-style parallel monitor inside inference
+1. Update proxy (`proxy_cnn.mjs`, `stuck_cnn.mjs`, `abstract_step.mjs`) to use the v5 per-step MLP instead of the windowed CNN
+2. Run a held-out benchmark to validate v5 generalization (expected: similar improvement over v4 benchmark F1=0.714)
+3. Feature ablation study on the 8 features — `has_prior_output` and `step_index_norm` are candidates for removal
+4. Collect more sessions with extended thinking blocks — DataClaw (26 sessions) is the only current source
 
 ## License
 

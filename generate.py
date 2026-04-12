@@ -18,7 +18,7 @@ from fnmatch import fnmatch
 sys.path.insert(0, os.path.dirname(__file__))  # pylint: disable=wrong-import-position
 
 from src.pipeline.batch_label import run_batch_label  # noqa: E402
-from src.pipeline.extract_features import SCHEMA_VERSION, extract_session  # noqa: E402
+from src.pipeline.extract_features import SCHEMA_VERSION, _is_valid_feature_file, extract_session  # noqa: E402
 from src.pipeline.label_session import validate_label_file  # noqa: E402
 from src.pipeline.merge_session import merge_session  # noqa: E402
 from src.pipeline.migrate_features import migrate_artifact  # noqa: E402
@@ -334,6 +334,7 @@ def process_source(  # pylint: disable=too-many-branches,too-many-statements,too
     force_relabel: bool = False,
     dry_run_estimate: bool = False,
     retry_failed: bool = False,
+    skip_labeling: bool = False,
 ) -> tuple[int, int, int]:
     """Process one dataset source. Returns (done, failed, pending)."""
     source_name = os.path.basename(source_dir.rstrip("/"))
@@ -443,17 +444,35 @@ def process_source(  # pylint: disable=too-many-branches,too-many-statements,too
         progress["failed_sessions"] = []
 
     # Batch label
-    results = run_batch_label(
-        source_dir=source_dir,
-        raw_sessions=sessions,
-        labels_dir=labels_dir,
-        max_sessions=max_sessions,
-        dry_run_estimate=dry_run_estimate,
-        force=force_relabel,
-    )
+    if skip_labeling:
+        results = {}
+    else:
+        results = run_batch_label(
+            source_dir=source_dir,
+            raw_sessions=sessions,
+            labels_dir=labels_dir,
+            max_sessions=max_sessions,
+            dry_run_estimate=dry_run_estimate,
+            force=force_relabel,
+        )
 
     if dry_run_estimate:
         return 0, 0, len(sessions)
+
+    # Report stale feature files that will be re-extracted due to schema bump
+    stale = sum(
+        1
+        for sess in sessions
+        if not _is_valid_feature_file(
+            os.path.join(
+                features_dir,
+                f"{sess['session_id']}_features.json",
+            ),
+            sum(1 for s in sess.get("steps", []) if s.get("type") != "compact"),
+        )
+    )
+    if stale:
+        print(f"  Re-extracting features for {stale} sessions (schema v{schema_version})")
 
     # Extract features and merge
     done = 0
@@ -536,19 +555,52 @@ def main() -> None:
     parser.add_argument(
         "source_dirs",
         nargs="*",
-        default=["datasets/nlile/"],
-        help="Dataset directories to process",
+        default=[],
+        help="Dataset directories to process (default: read from --manifest)",
+    )
+    parser.add_argument(
+        "--manifest",
+        default="training_manifest.json",
+        help="Manifest file to read source_dirs from when none are given on the command line",
     )
     parser.add_argument("--max-sessions", type=int, default=None)
     parser.add_argument("--force-relabel", action="store_true")
     parser.add_argument("--schema-version", type=int, default=SCHEMA_VERSION)
     parser.add_argument("--retry-failed", action="store_true")
     parser.add_argument("--dry-run-estimate", action="store_true")
+    parser.add_argument(
+        "--skip-labeling",
+        action="store_true",
+        help="Skip batch labeling — only extract features and merge already-labeled sessions",
+    )
     args = parser.parse_args()
+
+    source_dirs = args.source_dirs
+    if not source_dirs:
+        if not os.path.exists(args.manifest):
+            print(
+                f"ERROR: no source dirs given and manifest not found: {args.manifest}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        with open(args.manifest, encoding="utf-8") as _mf:
+            _manifest = json.load(_mf)
+        source_dirs = [
+            entry["source_dir"]
+            for entry in _manifest.get("datasets", [])
+            if "source_dir" in entry
+        ]
+        if not source_dirs:
+            print(
+                f"ERROR: manifest {args.manifest} has no entries with 'source_dir'",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print(f"Using source dirs from {args.manifest}: {source_dirs}")
 
     summary: dict[str, tuple[int, int, int]] = {}
 
-    for source_dir in args.source_dirs:
+    for source_dir in source_dirs:
         source_name = os.path.basename(source_dir.rstrip("/"))
         print(f"\nProcessing {source_name}...")
         try:
@@ -559,6 +611,7 @@ def main() -> None:
                 force_relabel=args.force_relabel,
                 dry_run_estimate=args.dry_run_estimate,
                 retry_failed=args.retry_failed,
+                skip_labeling=args.skip_labeling,
             )
             summary[source_name] = (done, failed, pending)
         except Exception as exc:  # pylint: disable=broad-except

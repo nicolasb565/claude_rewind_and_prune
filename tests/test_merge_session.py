@@ -103,6 +103,50 @@ class TestMergeSession:
             with pytest.raises(ValueError, match="n_steps mismatch"):
                 merge_session(label_path, feat_path, out_path)
 
+    def test_merge_session_schema_version_matches_extract_features(self):
+        """merge_session must accept feature files produced by the current
+        extract_features.SCHEMA_VERSION — not a stale hardcoded constant.
+
+        Regression: merge_session.py had SCHEMA_VERSION = 2 hardcoded while
+        extract_features.py was bumped to 3, causing all merges to fail with
+        "Feature file schema_version=3, expected 2".
+        """
+        from src.pipeline.merge_session import SCHEMA_VERSION as MERGE_VERSION
+
+        assert MERGE_VERSION == SCHEMA_VERSION, (
+            f"merge_session.SCHEMA_VERSION={MERGE_VERSION} != "
+            f"extract_features.SCHEMA_VERSION={SCHEMA_VERSION} — "
+            "keep them in sync or import from extract_features"
+        )
+
+    def test_unknown_label_string_raises(self):
+        """An unrecognised label string must raise ValueError, not silently map to 0.0.
+
+        Regression: _LABEL_ENCODING.get(label_str, 0.0) mapped typos like
+        'PRODUCTIV' to PRODUCTIVE silently, corrupting training data.
+        """
+        n = 3
+        steps = _make_steps(n)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            feat_path = extract_session(steps, "sess_badlabel", "test", tmpdir)
+            label_path = os.path.join(tmpdir, "sess_badlabel_labels.json")
+            # Manually write a label file with a bad label string
+            import json as _json
+            with open(label_path, "w") as f:
+                _json.dump({
+                    "session_id": "sess_badlabel",
+                    "source": "test",
+                    "n_steps": n,
+                    "labeler": "test",
+                    "labeled_at": "2026-01-01T00:00:00Z",
+                    "labels": ["PRODUCTIVE", "TYPO", "STUCK"],
+                }, f)
+
+            out_path = os.path.join(tmpdir, "out.jsonl")
+            with pytest.raises(ValueError, match="TYPO"):
+                merge_session(label_path, feat_path, out_path)
+
     def test_wrong_schema_version_raises(self):
         n = 3
         steps = _make_steps(n)
