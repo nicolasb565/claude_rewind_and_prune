@@ -504,8 +504,43 @@ git commit -m "data: migrate work_embedded_c artifact to schema v2"
 - One row per step: `{session_id, step, schema_version, label, ...features}`
 - Label provenance preserved: `label_source` field (`sonnet`, `heuristic`, etc.)
 - No raw session content (no tool outputs, no file contents)
-- Idempotent: `generate.py` appends new sessions, never rewrites existing rows
 - Committed to the repo — enables reproducibility without raw sessions
+
+**Artifact lifecycle — handling new, deleted, and evolved sessions:**
+
+*New sessions (raw files added since last run):*
+`generate.py` compares session IDs in the artifact against sessions found by
+the parser. Any session not yet in the artifact is treated as pending and runs
+the full label + extract pipeline. Results are appended to the artifact.
+Re-running two months later with new raw sessions just works.
+
+*Deleted/lost raw sessions (raw file gone, artifact row present):*
+The artifact row is preserved as-is — it is the only surviving record of that
+session's labels and features. `generate.py` logs a warning for each missing
+raw file but continues normally. The session remains in training data.
+Pass `--drop-missing` to explicitly remove orphaned rows from the artifact
+(use with caution — labels are lost permanently).
+
+*Feature schema change with raw sessions available:*
+Re-extraction from raw sessions gives exact feature values. Run:
+```bash
+ANTHROPIC_API_KEY=... python generate.py datasets/work_embedded_c/ --schema-version 2
+```
+`generate.py` detects sessions in the artifact with stale `schema_version`,
+checks if raw session files exist, and re-extracts features for those sessions.
+Labels are preserved from the artifact — only features are recomputed.
+Sessions whose raw files are missing fall back to migration (approximate values).
+
+*Feature schema change without raw sessions (any machine):*
+Migration is the only option — see Feature Migration section below. Values
+requiring raw data receive defaults or `null`.
+
+*Verifying artifact integrity:*
+```bash
+python src/pipeline/migrate_features.py data/sources/work_embedded_c_labeled.jsonl.gz --verify
+```
+Checks that every session has consistent `n_steps` across all its rows and
+that `schema_version` is uniform. Prints a summary of any corrupt sessions.
 
 ---
 
