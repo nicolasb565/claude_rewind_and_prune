@@ -1,5 +1,11 @@
-# Training pipeline dependencies
-# Install with: pip install -r requirements.txt
-torch>=2.0
+# Pipeline dependencies
+# Install with: python3 -m venv .venv && pip install -r requirements.txt
+anthropic==0.94.0
+python-dotenv==1.2.2
+pyarrow==23.0.1
+torch==2.11.0
+scikit-learn==1.8.0
 numpy>=1.24
-pyarrow>=12.0   # only needed for process_claude_code.py (nlile parquet ingestion)
+pytest==9.0.3
+black==26.3.1
+pylint==4.0.5
