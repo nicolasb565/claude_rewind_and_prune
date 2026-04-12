@@ -199,36 +199,55 @@ re-labeling even on a valid file.
 - Python splits on commas, maps `P→PRODUCTIVE`, `S→STUCK`, `U→UNSURE`
 - Validates `len(labels) == n_steps` before writing
 
-**Labeling guidance — PRODUCTIVE / STUCK / UNSURE:**
+**System prompt (draft — tune after calibration run):**
 
-The system prompt defines three labels:
+```
+You are labeling steps in a Claude Code session. Each step is one tool call.
+Classify each step as P (productive), S (stuck), or U (unsure).
 
-- **PRODUCTIVE** — the step is advancing the work. Exploring new approaches,
-  writing code, reading docs, testing a hypothesis for the first time. The model
-  is making forward progress, even if that includes occasional errors.
-- **STUCK** — the step is part of a recognizable loop. The same command,
-  the same error, the same file edit, repeated without new information or a
-  changed approach. The work has stopped moving forward.
-- **UNSURE** — genuine ambiguity that cannot be resolved from the transcript.
-  Use sparingly. UNSURE is not a default — it is a last resort.
+PRODUCTIVE: the session is making forward progress. Exploring a new approach,
+writing code, reading a file for the first time, testing a hypothesis.
+Errors are fine — what matters is that something new is being attempted.
 
-**When in doubt, do not default to PRODUCTIVE or STUCK.** If you cannot tell
-whether a step is advancing work or repeating a failed approach, label it UNSURE.
-UNSURE (encoded as 0.5 during training) provides a calibrated gradient signal
-rather than forcing an incorrect binary label.
+STUCK: the session is in a loop. The same command, the same error, the same
+edit repeated without a changed approach or new information. The work has
+stopped moving forward.
 
-**Common patterns:**
-- First attempt at a command → PRODUCTIVE
-- Same command with identical arguments and same error → STUCK (by second or third repeat)
-- Exploring a different file or different approach after an error → PRODUCTIVE
-- Reading a file already read earlier, with no new information → STUCK
-- A pause before a major transition (e.g. reading docs before a big edit) → PRODUCTIVE
-- Compiling/testing in a tight loop with the same failure → STUCK
+UNSURE: genuine ambiguity that you cannot resolve from the transcript.
+Use sparingly — not as a default.
 
-**Transition labeling:** the first step after entering a stuck loop is
-still PRODUCTIVE; label the step where repetition begins as STUCK.
-The first step after escaping a stuck loop (new approach, new tool, new file)
-is PRODUCTIVE again.
+Common patterns:
+- First attempt at any command → P
+- Same command, same error, second or third time → S
+- Trying a different file, flag, or approach after failure → P
+- Reading a file already read, with no new context → S
+- Tight compile/test loop with unchanged failure → S
+
+Transition rules:
+- The first step of a repeating pattern is still P; label S when repetition begins
+- The first step after escaping a loop (new approach, new tool) is P again
+
+Output: one label per step, comma-separated, nothing else.
+Example: P,P,S,S,S,P,P,S,P
+```
+
+No project context is given to the model — it does not need to know this is for
+a stuck detector or a CNN. The transcript truncation is not disclosed either;
+Sonnet just sees shorter outputs, which is normal variation in real sessions.
+
+**Calibration — verify and tune the system prompt before the full run:**
+
+Run the 5-session calibration (`python generate.py --max-sessions 5`) and
+manually inspect the label files against the raw sessions:
+- Are STUCK transitions happening at the right step, or too early / too late?
+- Is UNSURE appearing at all? If so, on what kind of steps?
+- Are any clearly repetitive steps labeled PRODUCTIVE?
+- Are any clearly novel steps labeled STUCK?
+
+If the labels look wrong for a systematic reason, adjust the system prompt
+(tighten the transition rule, add or remove a pattern example) and re-run
+the calibration. Only commit API credits to the full run once the 5-session
+output looks correct.
 
 **API strategy:**
 - Uses Anthropic Message Batches API (50% discount, separate rate limits)
