@@ -1,5 +1,31 @@
 # Data Generation and Training Pipeline
 
+## Quickstart (reproducing the model from scratch)
+
+```bash
+# 1. Cost calibration — run 5 sessions, check estimated token cost before committing credits
+python src/batch_label.py datasets/nlile/ --max-sessions 5 --dry-run-estimate
+
+# 2. Label all sources (submits Batch API requests, polls until done — safe to re-run)
+python src/batch_label.py datasets/nlile/ datasets/dataclaw_claude/ \
+                          datasets/masterclass/ datasets/claudeset/
+
+# 3. Extract features + merge into training files (idempotent, skips already-done sessions)
+python src/orchestrate.py datasets/nlile/ datasets/dataclaw_claude/ \
+                          datasets/masterclass/ datasets/claudeset/
+
+# 4. Train
+python src/train.py --manifest training_manifest.json
+
+# 5. Evaluate
+python src/eval_benchmark.py
+```
+
+Steps 2 and 3 are safe to re-run at any time — they resume from where they left off.
+Set `ANTHROPIC_API_KEY` in your environment before step 2.
+
+---
+
 ## Overview
 
 The pipeline is fully decoupled into independent stages. Labels, features, and
@@ -12,12 +38,12 @@ Raw sessions
     ├── [fetch.json]  ──────────────────────── download / locate raw data
     ├── [filter.json] ──────────────────────── select sessions for labeling
     │
-    ├── src/label_session.py  ──────────────── per-step labels  (Sonnet via claude -p)
+    ├── src/batch_label.py   ───────────────── per-step labels via Batch API
     ├── src/extract_features.py  ───────────── per-step features (pure computation)
     │
     ├── src/merge_session.py  ──────────────── zip labels + features → training rows
     │
-    └── src/orchestrate.py  ────────────────── drives all of the above
+    └── src/orchestrate.py  ────────────────── drives extract + merge after labeling
             │
             └── data/generated/<source>_v<N>.jsonl   (one file per source)
                         │
@@ -524,3 +550,52 @@ python src/train.py --manifest training_manifest.json
 
 The per-step label format from this pipeline maps directly to this architecture
 with no additional processing.
+
+---
+
+## Codebase Cleanup
+
+When the new pipeline is implemented and validated, delete the old window-based
+pipeline files. They are replaced entirely by the new modules.
+
+### Files to delete
+
+| File | Replaced by |
+|---|---|
+| `src/label_sessions.py` | `src/batch_label.py` + `src/label_session.py` + `src/parse_nlile.py` |
+| `src/run_review.py` | `src/batch_label.py` |
+| `src/review_sonnet.py` | `src/batch_label.py` |
+| `src/review_opus.py` | `src/batch_label.py` (no Opus escalation in new pipeline) |
+| `src/sample_productive.py` | one-off audit script, no longer needed |
+| `src/migrate_labels.py` | window label migration, not applicable to per-step labels |
+| `src/migrate_add_prior_output.py` | superseded by `src/migrate_features.py` |
+| `src/migrate_fix_features.py` | superseded by `src/migrate_features.py` |
+| `src/merge_sources.py` | replaced by `src/merge_session.py` + `src/orchestrate.py` |
+| `src/abstract_trajectory.py` | windowing logic, not needed for per-step pipeline |
+
+### Files to keep and update
+
+| File | Status |
+|---|---|
+| `src/parse_dataclaw.py` | keep — reused as parser for dataclaw_claude + masterclass |
+| `src/eval_benchmark.py` | keep — benchmark evaluation unchanged |
+| `src/train_cnn_oversample.py` | rename → `src/train.py`, update for per-step format |
+
+### New files to create
+
+| File | Purpose |
+|---|---|
+| `src/batch_label.py` | Batch API submission, polling, retrieval |
+| `src/label_session.py` | transcript formatter, label file writer |
+| `src/extract_features.py` | per-step numeric feature extraction |
+| `src/merge_session.py` | zip labels + features → training JSONL rows |
+| `src/orchestrate.py` | pipeline driver (features + merge after labeling) |
+| `src/migrate_features.py` | chained schema version migrations |
+| `src/parse_nlile.py` | nlile parquet parser (extracted from label_sessions.py) |
+| `src/parse_claudeset.py` | claudeset-community parser (different turn schema) |
+
+### Cleanup timing
+
+Do not delete old files until the new pipeline has produced a complete labeled
+dataset and a trained model that meets or exceeds v4 benchmark performance.
+Run old and new in parallel during transition if needed.
