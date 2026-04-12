@@ -96,6 +96,18 @@ Linear(53, 64) → ReLU → Linear(64, 32) → ReLU → Linear(32, 1) → Sigmoi
 | Parameters | 5,569 |
 | Weights | ~60 KB |
 
+**Score distribution on the test set** (n=13,679 STUCK, n=18,116 PRODUCTIVE):
+
+| Percentile | STUCK | PRODUCTIVE |
+|---|---|---|
+| p50 | 1.000 | 0.014 |
+| p75 | 1.000 | 0.056 |
+| p90 | 1.000 | 0.163 |
+| p95 | 1.000 | 0.297 |
+| p99 | 1.000 | 0.661 |
+
+The median STUCK step scores 1.000; 95% of productive steps score below 0.297. The threshold of 0.5 sits well inside the gap between the two distributions.
+
 **Improvement over v4 (windowed CNN):**
 
 | Model | Architecture | Params | F1 | Recall |
