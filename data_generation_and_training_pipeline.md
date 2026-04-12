@@ -423,33 +423,40 @@ python src/batch_label.py datasets/nlile/ --max-sessions 5   # cost calibration
 
 ---
 
-### `src/orchestrate.py`
+### `generate.py`
 
-Drives the full pipeline for a list of source directories. This is the main
-entry point for dataset generation.
+Top-level entry point. Drives the full pipeline for one or more source
+directories: fetch → label → extract features → merge.
 
-**Inputs:**
-- One or more source directories, each containing `fetch.json` and
-  `filter.json`
-- `--force-relabel` to ignore existing label files
-- `--schema-version N` to trigger feature re-extraction for stale files
+**CLI:**
+```
+python generate.py datasets/nlile/ datasets/dataclaw_claude/
+python generate.py datasets/nlile/ --max-sessions 5   # calibration run
+```
+
+**Flags:**
+- `--max-sessions N` — process at most N sessions per source (calibration)
+- `--force-relabel` — re-label even if a valid label file exists
+- `--schema-version N` — trigger feature re-extraction for files at older version
+- `--retry-failed` — resubmit sessions previously marked as failed
+- `--dry-run-estimate` — print token/cost estimate without submitting
 
 **Behavior:**
-1. Read `fetch.json` — download raw sessions if not already present
+1. For each source directory: read `fetch.json` — download raw sessions if not present
 2. Read `filter.json` — select sessions matching criteria
-3. Run `batch_label.py` — submit/retrieve labels for all pending sessions
+3. Run `pipeline/batch_label.py` — submit/retrieve labels for all pending sessions
 4. For each labeled session:
-   - Run `extract_features.py` (skip if feature file is current and complete)
-   - Run `merge_session.py`
+   - Run `pipeline/extract_features.py` (skip if feature file is current and complete)
+   - Run `pipeline/merge_session.py`
    - Mark session as `done` in progress file immediately on success
    - Mark session as `failed` on error, continue with remaining sessions
 5. Write `data/generated/<source>_v<N>.jsonl` from all completed sessions
-6. Print summary: done / failed / pending
+6. Print summary: done / failed / pending per source
 
 **Resume behavior:** re-running with the same arguments resumes from where
-it left off. Sessions with existing label files and feature files are skipped.
+it left off. Sessions with existing valid label and feature files are skipped.
 In-flight batches are detected via `pending_batch.json` and polled rather than
-resubmitted. Pass `--retry-failed` to resubmit previously failed sessions.
+resubmitted.
 
 **Progress tracking** — `data/generated/<source>_progress.json`:
 ```json
@@ -463,11 +470,6 @@ resubmitted. Pass `--retry-failed` to resubmit previously failed sessions.
     ...
   ]
 }
-```
-
-**CLI:**
-```
-python src/orchestrate.py datasets/nlile/ datasets/dataclaw_claude/
 ```
 
 ---
@@ -1003,7 +1005,7 @@ pipeline files. They are replaced entirely by the new modules.
 | `src/migrate_labels.py` | window label migration, not applicable to per-step labels |
 | `src/migrate_add_prior_output.py` | superseded by `src/migrate_features.py` |
 | `src/migrate_fix_features.py` | superseded by `src/migrate_features.py` |
-| `src/merge_sources.py` | replaced by `src/merge_session.py` + `src/orchestrate.py` |
+| `src/merge_sources.py` | replaced by `src/pipeline/merge_session.py` + `generate.py` |
 | `src/abstract_trajectory.py` | windowing logic, not needed for per-step pipeline |
 
 ### Files to keep and update
