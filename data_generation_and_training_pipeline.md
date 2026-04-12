@@ -468,6 +468,47 @@ extraction entirely. The pipeline is:
 
 ---
 
+## Proprietary Dataset Workflow
+
+For datasets where raw sessions exist locally but cannot be shared (e.g.
+internal company codebases, client work), the workflow is:
+
+**First time — generating the artifact:**
+```bash
+# 1. Point fetch.json at local raw sessions with type=proprietary and artifact path
+# 2. Run generate.py normally — it labels, extracts features, and writes the .gz
+ANTHROPIC_API_KEY=... python generate.py datasets/work_embedded_c/
+
+# 3. Commit the artifact — it contains only labels + features, no raw session content
+git add data/sources/work_embedded_c_labeled.jsonl.gz
+git commit -m "data: add work_embedded_c labeled artifact"
+```
+
+**Subsequently — anyone cloning the repo:**
+```bash
+# Change fetch.json type to labeled_gz (or keep proprietary — generate.py detects
+# that the artifact already covers all sessions and skips labeling)
+python generate.py datasets/work_embedded_c/   # reads artifact, skips labeling
+```
+
+**When the feature schema changes:**
+```bash
+# Migrate the artifact in-place to the new schema version
+python src/pipeline/migrate_features.py data/sources/work_embedded_c_labeled.jsonl.gz \
+    --to-version 2
+git add data/sources/work_embedded_c_labeled.jsonl.gz
+git commit -m "data: migrate work_embedded_c artifact to schema v2"
+```
+
+**Key properties of the `.gz` artifact:**
+- One row per step: `{session_id, step, schema_version, label, ...features}`
+- Label provenance preserved: `label_source` field (`sonnet`, `heuristic`, etc.)
+- No raw session content (no tool outputs, no file contents)
+- Idempotent: `generate.py` appends new sessions, never rewrites existing rows
+- Committed to the repo — enables reproducibility without raw sessions
+
+---
+
 ## Feature Migration
 
 When the feature schema changes (new feature added, feature dropped, normalization
