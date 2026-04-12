@@ -429,7 +429,26 @@ For public datasets:
 }
 ```
 
-For proprietary pre-labeled datasets (no raw sessions available):
+For proprietary datasets where raw sessions cannot be shared:
+```json
+{
+  "type": "proprietary",
+  "path": "data/separate/work_embedded_c/",
+  "parser": "dataclaw",
+  "artifact": "data/sources/work_embedded_c_labeled.jsonl.gz",
+  "description": "Proprietary embedded C sessions — raw sessions local only"
+}
+```
+
+When `type` is `proprietary`, `generate.py` runs the full pipeline (label +
+extract features) using the local raw sessions, then writes a `.gz` artifact
+to the path specified in `artifact`. The artifact contains one row per step
+with labels + features baked in — no raw session content. It can be committed
+to the repo and shared without exposing the raw sessions.
+
+Re-running `generate.py` skips sessions already present in the artifact.
+
+For consuming a pre-existing artifact (no raw sessions available):
 ```json
 {
   "type": "labeled_gz",
@@ -438,7 +457,7 @@ For proprietary pre-labeled datasets (no raw sessions available):
 }
 ```
 
-When `type` is `labeled_gz`, the orchestrator skips labeling and feature
+When `type` is `labeled_gz`, `generate.py` skips labeling and feature
 extraction entirely. The pipeline is:
 1. Decompress `.gz` → read existing labeled rows
 2. Check `schema_version` of each row against current version
