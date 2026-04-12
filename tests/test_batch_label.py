@@ -397,6 +397,25 @@ class TestCollectBatchResults:
             captured = capsys.readouterr()
             assert "sess_missing" in captured.err
 
+    def test_errored_session_not_warned_as_missing(self, capsys):
+        """An errored session must NOT produce 'missing from batch results' warning.
+
+        The API returned it — as an error — so it is not missing.
+        Bug: the old implementation checked 'labels is None and not in parse_failure_ids',
+        which is also true for errored sessions, producing a false-positive warning.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            transcripts = {"sess_errored": ("t", 2)}
+            client = MagicMock()
+            client.messages.batches.results.return_value = [
+                self._make_error("sess_errored", "overloaded_error"),
+            ]
+            from src.pipeline.batch_label import _collect_batch_results
+
+            _collect_batch_results(client, "batch_x", "test_src", tmpdir, transcripts)
+            captured = capsys.readouterr()
+            assert "missing from batch results" not in captured.err
+
 
 class TestRetryParseFailures:
     def _make_success(self, session_id: str, csv: str):
@@ -488,7 +507,9 @@ class TestRetryParseFailures:
 
             with patch(
                 "src.pipeline.batch_label.submit_batch", return_value="batch_retry"
-            ), patch("src.pipeline.batch_label._get_client", return_value=client):
+            ) as mock_submit, patch(
+                "src.pipeline.batch_label._get_client", return_value=client
+            ):
                 from src.pipeline.batch_label import _retry_parse_failures
 
                 results = _retry_parse_failures(
@@ -504,6 +525,11 @@ class TestRetryParseFailures:
             assert results.get("sess_empty") is None
             # sess_ok still gets labeled
             assert results.get("sess_ok") == ["PRODUCTIVE", "STUCK"]
+            # sess_empty must not appear in what was submitted to the API
+            submitted_transcripts = mock_submit.call_args.args[0]
+            submitted_ids = [sid for sid, _, _ in submitted_transcripts]
+            assert "sess_empty" not in submitted_ids
+            assert "sess_ok" in submitted_ids
 
 
 class TestPollAndRetrieveRetry:
@@ -522,23 +548,38 @@ class TestPollAndRetrieveRetry:
 
         return SimpleNamespace(processing_status="ended")
 
-    def test_retry_batch_is_polled_before_results(self):
-        """After submitting retry batch, poll must happen before collecting results.
+    def test_retry_poll_precedes_retry_results(self):
+        """poll must complete for the retry batch before its results are read.
 
-        Issue #1: currently _retry_parse_failures calls _collect_batch_results
-        immediately after submit_batch — no _poll_until_done in between.
-        The retry batch is still in_progress when results are read.
+        Issue #1: _retry_parse_failures was calling _collect_batch_results immediately
+        after submit_batch. Fix: _poll_until_done added between submit and collect.
+
+        This test asserts strict ordering: retrieve(retry_batch_id) must appear
+        in mock_calls before the second results() call.
         """
         from types import SimpleNamespace
 
         with tempfile.TemporaryDirectory() as tmpdir:
+            call_log: list[tuple[str, str]] = []
+
             client = MagicMock()
-            client.messages.batches.retrieve.return_value = self._ended_status()
-            # Main batch: wrong count → parse failure. Retry batch: correct count.
-            client.messages.batches.results.side_effect = [
-                iter([self._make_success("sess_1", "P,S,U,EXTRA")]),  # 4 for n=3
-                iter([self._make_success("sess_1", "P,S,U")]),
+
+            def tracking_retrieve(batch_id):
+                call_log.append(("retrieve", batch_id))
+                return self._ended_status()
+
+            raw_results = [
+                [self._make_success("sess_1", "P,S,U,EXTRA")],  # main: wrong count
+                [self._make_success("sess_1", "P,S,U")],  # retry: correct
             ]
+            results_seq = iter(raw_results)
+
+            def tracking_results(batch_id):
+                call_log.append(("results", batch_id))
+                return iter(next(results_seq))
+
+            client.messages.batches.retrieve.side_effect = tracking_retrieve
+            client.messages.batches.results.side_effect = tracking_results
             client.messages.batches.create.return_value = SimpleNamespace(
                 id="retry_batch_id"
             )
@@ -553,23 +594,29 @@ class TestPollAndRetrieveRetry:
                     {"sess_1": ("transcript", 3)},
                 )
 
-            # retrieve must have been called for the retry batch (proves it was polled)
-            retrieve_calls = [
-                c.args[0] for c in client.messages.batches.retrieve.call_args_list
-            ]
-            assert (
-                "retry_batch_id" in retrieve_calls
-            ), "retry batch was never polled — results read from in-progress batch"
-            assert results["sess_1"] == ["PRODUCTIVE", "STUCK", "UNSURE"]
+        # retrieve("retry_batch_id") must appear before the second results call
+        retrieve_retry_pos = next(
+            i
+            for i, (op, bid) in enumerate(call_log)
+            if op == "retrieve" and bid == "retry_batch_id"
+        )
+        results_calls = [i for i, (op, _) in enumerate(call_log) if op == "results"]
+        assert len(results_calls) == 2, f"expected 2 results calls, got: {call_log}"
+        retry_results_pos = results_calls[1]
+        assert retrieve_retry_pos < retry_results_pos, (
+            f"retry poll (pos {retrieve_retry_pos}) must precede retry results "
+            f"(pos {retry_results_pos}); call_log: {call_log}"
+        )
+        assert results["sess_1"] == ["PRODUCTIVE", "STUCK", "UNSURE"]
 
-    def test_retry_does_not_leave_stale_pending_file(self):
-        """After poll_and_retrieve completes, pending_batch.json must not exist.
+    def test_retry_submit_uses_save_pending_false(self):
+        """Retry's submit_batch must be called with save_pending=False.
 
-        Issue #2: submit_batch always writes pending_batch.json. The retry calls
-        submit_batch while the main pending file is still on disk, clobbering it
-        with a file that contains only the retry session IDs. If the process crashes
-        mid-retry, the next resume would act on the wrong batch.
-        Fix: either delete pending before retry, or don't write it during retry.
+        Issue #2: if save_pending=True (the default), the retry overwrites the main
+        batch's pending_batch.json with a file containing only the retry sessions.
+        A crash mid-retry then leaves the wrong batch ID on disk for resume.
+        This test verifies the flag is passed, not just that the final state is clean
+        (the end-of-function cleanup would make the final state clean regardless).
         """
         from types import SimpleNamespace
 
@@ -584,7 +631,11 @@ class TestPollAndRetrieveRetry:
                 id="retry_batch_id"
             )
 
-            with patch("src.pipeline.batch_label._get_client", return_value=client):
+            with patch(
+                "src.pipeline.batch_label._get_client", return_value=client
+            ), patch(
+                "src.pipeline.batch_label.submit_batch", return_value="retry_batch_id"
+            ) as mock_submit:
                 from src.pipeline.batch_label import poll_and_retrieve
 
                 poll_and_retrieve(
@@ -594,10 +645,10 @@ class TestPollAndRetrieveRetry:
                     {"sess_1": ("transcript", 3)},
                 )
 
-            pending_path = os.path.join(tmpdir, "pending_batch.json")
-            assert not os.path.exists(pending_path), (
-                "pending_batch.json still on disk after poll_and_retrieve — "
-                "retry submit_batch clobbered main pending file"
+            mock_submit.assert_called_once()
+            assert mock_submit.call_args.kwargs.get("save_pending") is False, (
+                "retry submit_batch must pass save_pending=False to avoid "
+                "clobbering the main batch's pending file"
             )
 
 

@@ -149,11 +149,13 @@ def _collect_batch_results(  # pylint: disable=too-many-branches
     results: dict[str, list[str] | None] = {sid: None for sid in transcripts_by_id}
     parse_failure_ids: list[str] = []
     non_recoverable_found = False
+    seen_ids: set[str] = set()
 
     for result in _retry_call(client.messages.batches.results, batch_id):
         session_id = result.custom_id
         if session_id not in transcripts_by_id:
             continue
+        seen_ids.add(session_id)
 
         _transcript_text, n_steps = transcripts_by_id[session_id]
 
@@ -203,9 +205,10 @@ def _collect_batch_results(  # pylint: disable=too-many-branches
     if non_recoverable_found:
         sys.exit(1)
 
-    # Warn about sessions the API never returned results for
-    for sid, labels in results.items():
-        if labels is None and sid not in parse_failure_ids:
+    # Warn about sessions the API never returned any result for (not even an error).
+    # Do not warn for errored sessions — they appeared in the iterator, just not parseable.
+    for sid in transcripts_by_id:
+        if sid not in seen_ids:
             print(
                 f"WARNING: session {sid} missing from batch results",
                 file=sys.stderr,
@@ -223,11 +226,21 @@ def _retry_parse_failures(
 ) -> dict[str, list[str] | None]:
     """Submit a small follow-up batch for sessions whose CSV couldn't be parsed.
 
-    Returns {session_id: labels_or_None} for the retried sessions only.
-    Sessions with an empty transcript (e.g. filtered out on resume) are skipped.
+    Returns {session_id: labels_or_None} for every session in failure_ids.
+    Sessions with an empty transcript (e.g. filtered out on resume) are skipped
+    and returned as None.
+
+    Note: retry batches are submitted with save_pending=False and are therefore
+    not resumable. If the process crashes mid-retry, the retry batch is orphaned
+    on Anthropic's side (expiry will clean it up) and the next run re-enters
+    via the main batch's pending file, re-encountering the same parse failures
+    and retrying them fresh.
     """
     if not failure_ids:
         return {}
+
+    # Pre-populate result dict — all entries default to None (skipped or still failing).
+    all_results: dict[str, list[str] | None] = {sid: None for sid in failure_ids}
 
     retry_transcripts = []
     for sid in failure_ids:
@@ -242,14 +255,13 @@ def _retry_parse_failures(
         retry_transcripts.append((sid, transcript_text, n_steps))
 
     if not retry_transcripts:
-        return {sid: None for sid in failure_ids}
+        return all_results
 
     print(
         f"Retrying {len(retry_transcripts)} session(s) with bad label counts...",
         file=sys.stderr,
     )
-    # submit_batch writes pending_batch.json; pass save_pending=False so the retry
-    # batch does not clobber the main batch's pending file on disk.
+    # save_pending=False: do not clobber the main batch's pending_batch.json on disk.
     retry_batch_id = submit_batch(
         retry_transcripts, source, labels_dir, save_pending=False
     )
@@ -268,7 +280,8 @@ def _retry_parse_failures(
             file=sys.stderr,
         )
 
-    return retry_results
+    all_results.update(retry_results)
+    return all_results
 
 
 def _poll_until_done(client, batch_id: str, labels_dir: str) -> None:
