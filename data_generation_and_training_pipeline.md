@@ -63,63 +63,32 @@ structures — mixing them adds noise and degrades generalization. The existing
 `dataclaw` source (woctordho/dataclaw, 453 sessions) is 85% non-Claude and is
 **replaced** by the two sources below.
 
-| Source | Type | Sessions | Primary languages | Notes |
-|---|---|---|---|---|
-| `nlile` | parquet (internal) | ~5,000 | Rust 96% | hyperswitch codebase |
-| `dataclaw_claude` | huggingface | 69 | C 40%, C++ 19%, Python 18% | Claude-only filter of woctordho/dataclaw |
-| `masterclass` | huggingface | 141 | Python 56%, HTML 10% | gutenbergpbc/john-masterclass-cc, ML research |
-| `claudeset` | huggingface | 101 | PHP 41%, Java 13%, JS 11%, TS 2.5% | lelouch0110/claudeset-community; filter out 13 synthetic sessions |
-| `work_embedded_c` | labeled_gz | ~2,590 | C (embedded) | proprietary, pre-labeled, no raw sessions |
+| Source | HF repo / path | Sessions | Primary languages |
+|---|---|---|---|
+| `nlile` | internal parquet | ~5,000 | Rust 96% (hyperswitch) |
+| `dataclaw_claude` | woctordho/dataclaw | 69 | C 40%, C++ 19%, Python 18% |
+| `masterclass` | gutenbergpbc/john-masterclass-cc | 141 | Python 56%, HTML 10% |
+| `claudeset` | lelouch0110/claudeset-community | 101 | PHP 41%, Java 13%, JS 11%, TS 2.5% |
+| `work_embedded_c` | proprietary .gz artifact | ~2,590 | C (embedded) |
 
-**Language coverage summary:** Rust (nlile), C/C++ (dataclaw_claude + work_embedded_c),
-Python (dataclaw_claude + masterclass), PHP/Java/JS/TS (claudeset). Missing: Go —
-need new sources when available.
+**Language coverage:** Rust (nlile), C/C++ (dataclaw_claude + work_embedded_c),
+Python (dataclaw_claude + masterclass), PHP/Java/JS/TS (claudeset). Missing: Go.
 
-**fetch.json for `dataclaw_claude`:**
-```json
-{
-  "type": "huggingface",
-  "repo": "woctordho/dataclaw",
-  "split": "train",
-  "parser": "dataclaw",
-  "model_filter": ["anthropic/claude-opus-4-6", "claude-opus-4-6",
-                   "anthropic/claude-sonnet-4-6", "claude-opus-4-5-20251101",
-                   "claude-haiku-4-5-20251001", "openrouter/anthropic/claude-opus-4.6"],
-  "description": "Claude-only sessions from woctordho/dataclaw (69/453 sessions)"
-}
-```
+**Per-source notes:**
 
-**fetch.json for `masterclass`:**
-```json
-{
-  "type": "huggingface",
-  "repo": "gutenbergpbc/john-masterclass-cc",
-  "split": "train",
-  "parser": "dataclaw",
-  "description": "Claude Code ML research sessions — Python-heavy (gutenbergpbc/john-masterclass-cc)"
-}
-```
-
-**fetch.json for `claudeset`:**
-```json
-{
-  "type": "huggingface",
-  "repo": "lelouch0110/claudeset-community",
-  "split": "train",
-  "parser": "claudeset",
-  "model_filter": ["claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929",
-                   "claude-sonnet-4-6"],
-  "description": "Claude Code sessions — PHP/Java/JS coverage (lelouch0110/claudeset-community)"
-}
-```
-
-The `model_filter` field in fetch.json is an optional allowlist of model strings.
-The orchestrator skips sessions whose `model` field is not in the list (filters out
-`<synthetic>` and any non-Claude entries). Omit the field to accept all sessions.
-
-The `claudeset` source uses a different schema than `dataclaw` — turns are structured
-as `{type: exchange|compact, user, assistant: {thinking, text, tool_calls}}` with
-`tool_calls: [{tool, input, output}]`. Requires its own parser (`parse_claudeset.py`).
+- `dataclaw_claude` — woctordho/dataclaw is 85% non-Claude (Gemini, GPT). Use
+  `model_filter` in fetch.json to keep only the 69 Claude sessions. Same schema
+  and parser as the original dataclaw.
+- `masterclass` — all sessions are Claude; no model filter needed. Uses the same
+  schema as woctordho/dataclaw, so the same `dataclaw` parser applies.
+- `claudeset` — lelouch0110/claudeset-community contains 13 synthetic sessions
+  (model field `<synthetic>`); use `model_filter` to exclude them. Different turn
+  schema from dataclaw — requires its own `claudeset` parser. Turn format:
+  `{type: exchange|compact, user, assistant: {thinking, text, tool_calls}}` with
+  `tool_calls: [{tool, input, output}]`.
+- `work_embedded_c` — proprietary C sessions. Raw files exist locally on the
+  workstation. On any other machine, consume the committed `.gz` artifact directly
+  (`type: labeled_gz` in fetch.json). See Proprietary Dataset Workflow.
 
 ---
 
@@ -442,27 +411,72 @@ were filtered out and why.
 
 ### `datasets/<source>/fetch.json`
 
+Supported `type` values:
+- `parquet` — local parquet files (nlile)
+- `huggingface` — download from HuggingFace Hub
+- `proprietary` — local raw sessions that cannot be shared; pipeline runs
+  label + extract and writes a `.gz` artifact. Re-running appends new sessions,
+  skips sessions already in the artifact.
+- `labeled_gz` — consume a pre-existing `.gz` artifact directly; skips labeling
+  and feature extraction. `filter.json` is ignored. Pipeline:
+  decompress → check `schema_version` → migrate if stale → write to `generated/`.
+
+`model_filter` is an optional allowlist of model name strings. Sessions whose
+`model` field is not in the list are skipped. Omit to accept all sessions.
+
+`parser` names the source adapter: `nlile`, `dataclaw`, or `claudeset`.
+
+**Actual fetch.json for each source:**
+
+`datasets/nlile/fetch.json`:
 ```json
 {
   "type": "parquet",
   "path": "data/separate/nlile_parquet/data/",
   "parser": "nlile",
-  "description": "Anthropic internal Claude Code sessions"
+  "description": "Anthropic internal Claude Code sessions (hyperswitch, mostly Rust)"
 }
 ```
 
-For public datasets:
+`datasets/dataclaw_claude/fetch.json`:
 ```json
 {
   "type": "huggingface",
-  "repo": "owner/dataset-name",
+  "repo": "woctordho/dataclaw",
   "split": "train",
-  "parser": "nlile",
-  "description": "Public Claude Code session dataset"
+  "parser": "dataclaw",
+  "model_filter": ["anthropic/claude-opus-4-6", "claude-opus-4-6",
+                   "anthropic/claude-sonnet-4-6", "claude-opus-4-5-20251101",
+                   "claude-haiku-4-5-20251001", "openrouter/anthropic/claude-opus-4.6"],
+  "description": "Claude-only sessions from woctordho/dataclaw (69/453 sessions)"
 }
 ```
 
-For proprietary datasets where raw sessions cannot be shared:
+`datasets/masterclass/fetch.json`:
+```json
+{
+  "type": "huggingface",
+  "repo": "gutenbergpbc/john-masterclass-cc",
+  "split": "train",
+  "parser": "dataclaw",
+  "description": "Claude Code ML research sessions — Python-heavy"
+}
+```
+
+`datasets/claudeset/fetch.json`:
+```json
+{
+  "type": "huggingface",
+  "repo": "lelouch0110/claudeset-community",
+  "split": "train",
+  "parser": "claudeset",
+  "model_filter": ["claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929",
+                   "claude-sonnet-4-6"],
+  "description": "Claude Code sessions — PHP/Java/JS coverage"
+}
+```
+
+`datasets/work_embedded_c/fetch.json` (workstation — raw sessions present):
 ```json
 {
   "type": "proprietary",
@@ -473,15 +487,7 @@ For proprietary datasets where raw sessions cannot be shared:
 }
 ```
 
-When `type` is `proprietary`, `generate.py` runs the full pipeline (label +
-extract features) using the local raw sessions, then writes a `.gz` artifact
-to the path specified in `artifact`. The artifact contains one row per step
-with labels + features baked in — no raw session content. It can be committed
-to the repo and shared without exposing the raw sessions.
-
-Re-running `generate.py` skips sessions already present in the artifact.
-
-For consuming a pre-existing artifact (no raw sessions available):
+`datasets/work_embedded_c/fetch.json` (other machines — artifact only):
 ```json
 {
   "type": "labeled_gz",
