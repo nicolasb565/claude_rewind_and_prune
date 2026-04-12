@@ -382,10 +382,15 @@ python src/train.py --manifest training_manifest.json
   feature vectors, single sigmoid output per step
 - ~10,000–15,000 params, still fits in L2 cache, sub-microsecond per step
 - Training: sequences of (features, label) pairs per session; loss computed
-  per step; teacher forcing during training (use ground truth previous labels
-  rather than model predictions to avoid compounding errors)
+  per step; teacher forcing during training (ground truth previous labels as
+  input rather than model predictions)
 - Inference: stateful — model keeps a ring buffer of its own previous outputs
   and feature vectors, updated after each tool call
+- Exposure bias mitigation: previous scores fed into the ring buffer are
+  quantized to the nearest of {0.0, 0.5, 1.0} (thresholds at 0.25 and 0.75)
+  before being stored, ensuring identical input distribution at training and
+  inference — ground truth labels are already in this set, so training is
+  unaffected
 
 The per-step label format from this pipeline maps directly to this architecture
 with no additional processing.
