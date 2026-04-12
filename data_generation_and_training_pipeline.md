@@ -372,15 +372,37 @@ Deleting pending_batch.json — affected sessions will be resubmitted on next ru
 Then delete `pending_batch.json` and write label files for any requests that
 did complete before expiry. Re-running resubmits only the remaining sessions.
 
-*Per-request errors (credit limit, rate limit, server error):*
+*Per-request errors:*
 Individual requests within a completed batch can fail independently. On
-retrieval, check each request's `result.type` — if `errored`, log the
-session ID and error code. Print a summary at the end:
+retrieval, check each request's `result.type` — if `errored`, inspect the
+error code and classify as recoverable or non-recoverable.
+
+Recoverable (transient — re-run resubmits automatically):
+- `529 overloaded`, `500 server error` — transient backend issue
+- `429 rate limit` — will succeed when rate resets
+
+Non-recoverable (re-run won't help without intervention):
+- `401 invalid API key` → ERROR: check ANTHROPIC_API_KEY in .env
+- `402 insufficient credits` → ERROR: top up your account at console.anthropic.com
+- `400 bad request` → ERROR: malformed transcript — bug in transcript generation
+
+For recoverable errors: leave sessions unlabeled, print a summary and exit normally
+— re-running will resubmit them in a new batch:
 ```
-WARNING: 12 requests errored (likely insufficient credits). Top up your account
-and re-run — errored sessions will be resubmitted automatically.
+WARNING: 8 sessions failed with transient errors (529 overloaded).
+Re-run to resubmit them automatically.
 ```
-Errored sessions are not written to label files, so re-running resubmits them.
+
+For non-recoverable errors: leave sessions unlabeled, print a specific actionable
+message, and **abort with a non-zero exit code** — re-running blindly would hit
+the same wall:
+```
+ERROR: 12 sessions failed with insufficient credits (402).
+Top up your account at console.anthropic.com, then re-run.
+```
+
+If a batch contains both recoverable and non-recoverable errors, non-recoverable
+takes priority: abort and report the non-recoverable issue first.
 
 **Cost calibration run:**
 ```
@@ -862,8 +884,12 @@ in any test. Tests must pass without `ANTHROPIC_API_KEY` set.
 - Resume: `pending_batch.json` present on startup → polls instead of resubmitting (mock)
 - Batch expired (status=`expired`): warning printed, `pending_batch.json` deleted,
   completed requests written, remaining sessions left unlabeled for resubmission (mock)
-- Per-request errors (status=`errored`): warning with count and error code printed,
-  errored sessions skipped, successful ones written (mock)
+- Recoverable per-request errors (529, 500, 429): warning printed, sessions left
+  unlabeled for resubmission, exit code 0 (mock)
+- Non-recoverable per-request errors (401, 402, 400): error message printed with
+  actionable guidance, exit code non-zero, successful sessions still written (mock)
+- Mix of recoverable and non-recoverable errors: non-recoverable takes priority,
+  abort with non-zero exit code (mock)
 - Partial batch results: mix of succeeded/errored/expired requests handled correctly
 
 **`test_extract_features.py`**
