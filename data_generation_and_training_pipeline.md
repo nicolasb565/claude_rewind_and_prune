@@ -348,19 +348,39 @@ results. Decoupled from the orchestrator so it can be run independently.
 1. Scan `data/labels/<source>/` — collect sessions without a complete label file
 2. Generate transcripts for pending sessions (tool outputs truncated to 500 chars)
 3. Submit up to 10,000 requests per batch (one request per session)
-4. Poll until batch completes (up to 24 hours) or save `batch_id` to
+4. Poll until batch completes or save `batch_id` to
    `data/labels/<source>/pending_batch.json` and exit — re-running resumes
 5. On completion, parse each response (CSV `P,S,U,...`), validate
    `len(labels) == n_steps`, write label file
 6. Sessions that fail validation are marked `failed` and excluded from the
    batch result — re-running will resubmit them
 
-**Resume / rate-limit safety:**
-- If a batch is already in-flight (`pending_batch.json` exists), skip
-  submission and go straight to polling/retrieval
-- Sessions with existing complete label files are never resubmitted
-- If the API credit limit is hit mid-batch, the batch continues server-side
-  (Anthropic processes it async); re-running after topping up retrieves results
+**Resume / error handling:**
+
+*In-flight batch (normal resume):*
+If `pending_batch.json` exists on startup, skip submission and go straight
+to polling/retrieval. Sessions with existing complete label files are never
+resubmitted.
+
+*Batch expired (24h timeout):*
+The Batch API expires a batch after 24 hours if not completed. On retrieval,
+check the batch status — if `expired`, print a clear warning:
+```
+WARNING: batch <id> expired before completing. X/N requests were processed.
+Deleting pending_batch.json — affected sessions will be resubmitted on next run.
+```
+Then delete `pending_batch.json` and write label files for any requests that
+did complete before expiry. Re-running resubmits only the remaining sessions.
+
+*Per-request errors (credit limit, rate limit, server error):*
+Individual requests within a completed batch can fail independently. On
+retrieval, check each request's `result.type` — if `errored`, log the
+session ID and error code. Print a summary at the end:
+```
+WARNING: 12 requests errored (likely insufficient credits). Top up your account
+and re-run — errored sessions will be resubmitted automatically.
+```
+Errored sessions are not written to label files, so re-running resubmits them.
 
 **Cost calibration run:**
 ```
@@ -840,8 +860,11 @@ in any test. Tests must pass without `ANTHROPIC_API_KEY` set.
 - Unknown characters in CSV raise an error
 - Sonnet returns JSON array instead of CSV — detected and rejected
 - Resume: `pending_batch.json` present on startup → polls instead of resubmitting (mock)
-- Credit limit hit: batch ID saved to `pending_batch.json`, re-run retrieves results (mock)
-- Partial batch results: failed sessions marked `failed`, successful ones written
+- Batch expired (status=`expired`): warning printed, `pending_batch.json` deleted,
+  completed requests written, remaining sessions left unlabeled for resubmission (mock)
+- Per-request errors (status=`errored`): warning with count and error code printed,
+  errored sessions skipped, successful ones written (mock)
+- Partial batch results: mix of succeeded/errored/expired requests handled correctly
 
 **`test_extract_features.py`**
 - Known fixture session produces expected feature values (regression test)
