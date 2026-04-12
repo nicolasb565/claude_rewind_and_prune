@@ -185,7 +185,7 @@ class TestParseCsvLabels:
         with pytest.raises(ValueError, match="mismatch"):
             parse_csv_labels("", 3)
 
-    def test_off_by_one_truncates_silently(self):
+    def test_off_by_one_extra_truncates(self):
         """Labeler occasionally appends one extra value — must be silently dropped.
 
         Observed in production: 307 labels returned for a 306-step session.
@@ -194,6 +194,17 @@ class TestParseCsvLabels:
         result = parse_csv_labels(csv, 306)
         assert len(result) == 306
         assert result == ["PRODUCTIVE"] * 306
+
+    def test_off_by_one_missing_pads_unsure(self):
+        """Labeler occasionally drops the last step — must pad with UNSURE.
+
+        Observed in production: 57 labels returned for a 58-step session.
+        """
+        csv = ",".join(["P"] * 57)
+        result = parse_csv_labels(csv, 58)
+        assert len(result) == 58
+        assert result[-1] == "UNSURE"
+        assert result[:-1] == ["PRODUCTIVE"] * 57
 
     def test_truncated_output_raises(self):
         """max_tokens truncation produces many fewer labels than expected — must raise.
