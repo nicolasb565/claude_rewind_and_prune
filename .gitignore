@@ -21,3 +21,4 @@ proxy/cnn_streak_checkpoint.pt
 
 # Derived benchmark output
 proxy/benchmark_summary.json
+.env
