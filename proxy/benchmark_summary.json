@@ -1,126 +1,126 @@
 {
   "off_1/01_gcc_bug": {
-    "max": 1.8850172074300064e-13,
+    "max": 4.458489044623093e-08,
     "fired": 0,
     "n_windows": 3
   },
   "off_1/02_gcc_bug": {
-    "max": 6.799283223035343e-14,
+    "max": 3.562902747944463e-06,
     "fired": 0,
     "n_windows": 11
   },
   "off_1/03_llvm_bug": {
-    "max": 0.9996914863586426,
-    "fired": 1,
+    "max": 0.9999967813491821,
+    "fired": 3,
     "n_windows": 31
   },
   "off_1/06_django_bug": {
-    "max": 2.2734575395588763e-06,
+    "max": 0.0008320239139720798,
     "fired": 0,
     "n_windows": 8
   },
   "off_1/07_react_bug": {
-    "max": 8.833924802602311e-13,
+    "max": 0.001320003648288548,
     "fired": 0,
     "n_windows": 3
   },
   "off_1/08_express_bug": {
-    "max": 1.218963124882677e-10,
+    "max": 0.013224638998508453,
     "fired": 0,
     "n_windows": 2
   },
   "off_1/10_linux_usb_bug": {
-    "max": 1.2496258097304674e-13,
+    "max": 2.216099892393686e-05,
     "fired": 0,
     "n_windows": 1
   },
   "off_1/12_linux_fs_bug": {
-    "max": 3.7407746344975124e-10,
+    "max": 7.962833517560775e-12,
     "fired": 0,
     "n_windows": 3
   },
   "off_1/24_rbtree_bug": {
-    "max": 0.0003025300393346697,
+    "max": 6.435499244616949e-08,
     "fired": 0,
     "n_windows": 6
   },
   "off_1/30_lapack_bug": {
-    "max": 3.004829458169711e-13,
+    "max": 2.3456858677661785e-10,
     "fired": 0,
     "n_windows": 1
   },
   "off_2/01_gcc_bug": {
-    "max": 1.0217325296935087e-07,
+    "max": 1.3993961829328327e-06,
     "fired": 0,
     "n_windows": 5
   },
   "off_2/02_gcc_bug": {
-    "max": 0.9957336783409119,
-    "fired": 2,
+    "max": 0.9980624318122864,
+    "fired": 3,
     "n_windows": 26
   },
   "off_2/03_llvm_bug": {
-    "max": 2.796762146317633e-07,
+    "max": 0.5027696490287781,
     "fired": 0,
     "n_windows": 24
   },
   "off_2/06_django_bug": {
-    "max": 0.04931977018713951,
+    "max": 0.05065058544278145,
     "fired": 0,
     "n_windows": 9
   },
   "off_2/07_react_bug": {
-    "max": 1.019285917891466e-07,
+    "max": 0.000180855902726762,
     "fired": 0,
     "n_windows": 2
   },
   "off_2/08_express_bug": {
-    "max": 0.0003657648339867592,
+    "max": 0.38643601536750793,
     "fired": 0,
     "n_windows": 5
   },
   "off_2/10_linux_usb_bug": {
-    "max": 5.524709162374464e-11,
+    "max": 2.792473274837448e-08,
     "fired": 0,
     "n_windows": 1
   },
   "off_2/12_linux_fs_bug": {
-    "max": 1.0194919561334892e-11,
+    "max": 2.397751441840512e-10,
     "fired": 0,
     "n_windows": 4
   },
   "off_2/30_lapack_bug": {
-    "max": 1.0762979654241927e-17,
+    "max": 8.232961296213148e-13,
     "fired": 0,
     "n_windows": 1
   },
   "heldout_off_1/40_django_jsonfield": {
-    "max": 2.566644070611801e-07,
+    "max": 0.7083811163902283,
     "fired": 0,
     "n_windows": 1
   },
   "heldout_off_1/41_django_keytexttransform": {
-    "max": 4.2251510734558906e-08,
+    "max": 0.051839523017406464,
     "fired": 0,
     "n_windows": 4
   },
   "heldout_off_1/42_lapack_uninit": {
-    "max": 7.16778285268343e-16,
+    "max": 1.4935401086690057e-16,
     "fired": 0,
     "n_windows": 1
   },
   "heldout_off_1/43_gcc_tbaa": {
-    "max": 0.0007796216523274779,
+    "max": 0.11084398627281189,
     "fired": 0,
     "n_windows": 3
   },
   "heldout_off_1/44_llvm_arith": {
-    "max": 1.2870877071691211e-05,
+    "max": 0.10279899090528488,
     "fired": 0,
     "n_windows": 2
   },
   "heldout_off_1/45_llvm_delete": {
-    "max": 7.170583571358691e-13,
+    "max": 0.0010025487281382084,
     "fired": 0,
     "n_windows": 2
   }
