@@ -250,6 +250,62 @@ For public datasets:
 }
 ```
 
+For proprietary pre-labeled datasets (no raw sessions available):
+```json
+{
+  "type": "labeled_gz",
+  "path": "data/sources/work_embedded_c_labeled.jsonl.gz",
+  "description": "Proprietary embedded C sessions — pre-labeled, raw sessions not available"
+}
+```
+
+When `type` is `labeled_gz`, the orchestrator skips labeling and feature
+extraction entirely. The pipeline is:
+1. Decompress `.gz` → read existing labeled rows
+2. Check `schema_version` of each row against current version
+3. If stale → run feature migration (see below)
+4. Write to `data/generated/<source>_v<N>.jsonl`
+
+`filter.json` is ignored for `labeled_gz` sources — the dataset is fixed.
+
+---
+
+## Feature Migration
+
+When the feature schema changes (new feature added, feature dropped, normalization
+changed), existing labeled `.gz` files and cached feature files need migration
+rather than full re-extraction.
+
+### `src/migrate_features.py`
+
+Applies incremental migrations to bring rows from any older `schema_version`
+to the current version. Each version bump has a corresponding migration
+function:
+
+```python
+MIGRATIONS = {
+    # (from_version, to_version): migration_fn
+    (1, 2): migrate_v1_to_v2,   # e.g. add self_similarity, drop output_diversity
+    (2, 3): migrate_v2_to_v3,   # e.g. add circular_lang
+}
+```
+
+A migration function receives a step dict and returns an updated step dict.
+Migrations are chained — a v1 row runs `v1→v2` then `v2→v3` to reach v3.
+
+**Key constraint:** migrations for `labeled_gz` sources can only add or
+transform features computable from existing fields. If a new feature requires
+raw session data (e.g. full output text), it cannot be migrated for proprietary
+sources — those features are unavailable. The migration must either:
+- Compute a reasonable default (e.g. `0.0`)
+- Mark the feature as `null` and let the training script handle it
+- Document the limitation in the migration function
+
+**CLI:**
+```
+python src/migrate_features.py data/sources/work_embedded_c_labeled.jsonl.gz --to-version 2
+```
+
 ---
 
 ## Training Manifest — `training_manifest.json`
