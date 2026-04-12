@@ -86,10 +86,14 @@ Python (dataclaw_claude + masterclass), PHP/Java/JS/TS (claudeset). Missing: Go.
   verified by inspection to match woctordho/dataclaw, so the same `dataclaw`
   parser applies. Verify schema compatibility before implementing the parser.
 - `claudeset` — lelouch0110/claudeset-community contains 13 synthetic sessions
-  (model field `<synthetic>`); use `model_filter` to exclude them. Different turn
-  schema from dataclaw — requires its own `claudeset` parser. Turn format:
+  (model field `<synthetic>`); use `model_filter` to exclude them. The model
+  field value `claude-sonnet-4-6` (no date suffix) is the exact string stored
+  in the dataset — verified by inspection. Different turn schema from dataclaw
+  — requires its own `claudeset` parser. Turn format:
   `{type: exchange|compact, user, assistant: {thinking, text, tool_calls}}` with
-  `tool_calls: [{tool, input, output}]`.
+  `tool_calls: [{tool, input, output}]`. `compact` turns are context-only
+  summaries with no tool calls — the parser skips them for step generation but
+  they remain visible in the transcript as context for the labeler.
 - `work_embedded_c` — proprietary C sessions. Raw files exist locally on the
   workstation. On any other machine, consume the committed `.gz` artifact directly
   (`type: labeled_gz` in fetch.json). See Proprietary Dataset Workflow.
@@ -198,10 +202,8 @@ re-labeling even on a valid file.
   ~500 tokens; this is a guideline, not a hard constraint. The cost estimate
   has headroom. If calibration shows the prompt needs more examples to label
   correctly, add them — correctness beats token frugality.
-- User message contains the full transcript + explicit step count; tool outputs
-  truncated to 500 chars of content, then `[...]` appended if truncated (so
-  truncated outputs are at most 503 chars). Outputs under 500 chars pass through
-  unchanged with no suffix.
+- User message contains the formatted transcript (see Transcript Format below)
+  followed by the explicit step count as a reminder
 - Output format: compact CSV `P,S,U,P,P,S` (single chars, comma-separated) —
   ~7x fewer output tokens than JSON array of strings
 - Python splits on commas, maps `P→PRODUCTIVE`, `S→STUCK`, `U→UNSURE`
@@ -242,6 +244,38 @@ Example: P,P,S,S,S,P,P,S,P
 No project context is given to the model — it does not need to know this is for
 a stuck detector or a CNN. The transcript truncation is not disclosed either;
 Sonnet just sees shorter outputs, which is normal variation in real sessions.
+
+**Transcript format:**
+
+Each step is rendered as a block with step index, tool name, one key argument,
+and truncated output. Tool outputs are capped at 500 chars of content; if
+truncated, `[...]` is appended (max 503 chars total). Outputs under 500 chars
+pass through unchanged with no suffix.
+
+```
+[0] TodoWrite
+  todos: [{'content': 'Investigate incremental authorization', ...}]
+  output: Todos have been modified successfully.[...]
+
+[1] Glob
+  pattern: **/payment*.rs
+  output: /workspace/.../payment_create.rs
+/workspace/.../payment_intent_count.rs[...]
+
+[2] Read
+  file_path: /workspace/.../payments_incremental_authorization.rs
+  output: 1→use std::marker::PhantomData;
+     2→use api_models::payments::...[...]
+```
+
+The key argument rendered per tool: `pattern` for Glob, `file_path` for Read,
+`cmd` for Bash, `todos` for TodoWrite, etc. Steps are numbered `[0]`, `[1]`,
+... to match the CSV output index. All source parsers produce a normalized step
+format; the transcript formatter renders it identically regardless of source.
+
+This format was validated experimentally: a 53-step session compressed to
+~5,600 tokens (vs ~41,740 uncompressed), and labels were identical between
+compressed and uncompressed transcripts.
 
 **Calibration — verify and tune the system prompt before the full run:**
 
@@ -356,16 +390,16 @@ results. Called by `generate.py` with a list of source directories; discovers
 pending sessions itself by scanning `data/labels/<source>/`. Can also be run
 independently.
 
-**Behavior:**
-1. Scan `data/labels/<source>/` — collect sessions without a complete label file
-2. Generate transcripts for pending sessions (tool outputs truncated to 500 chars)
-3. Submit up to 10,000 requests per batch (one request per session)
-4. Poll until batch completes or save `batch_id` to
-   `data/labels/<source>/pending_batch.json` and exit — re-running resumes
-5. On completion, parse each response (CSV `P,S,U,...`), validate
+**Behavior (one batch per source — called once per source directory):**
+1. Create `data/labels/<source>/` if it does not exist
+2. Scan `data/labels/<source>/` — collect sessions without a complete label file
+3. Generate transcripts for pending sessions (see Transcript Format)
+4. Submit one batch per source (up to 10,000 requests); save `batch_id` to
+   `data/labels/<source>/pending_batch.json` — re-running resumes
+5. Poll until batch completes or exit and let the user re-run later
+6. On completion, parse each response (CSV `P,S,U,...`), validate
    `len(labels) == n_steps`, write label file
-6. Sessions that fail validation are marked `failed` and excluded from the
-   batch result — re-running will resubmit them
+7. Sessions that fail validation are marked `failed` — re-running will resubmit them
 
 **Resume / error handling:**
 
@@ -382,7 +416,9 @@ WARNING: batch <id> expired before completing. X/N requests were processed.
 Deleting pending_batch.json — affected sessions will be resubmitted on next run.
 ```
 Then delete `pending_batch.json` and write label files for any requests that
-did complete before expiry. Re-running resubmits only the remaining sessions.
+did complete before expiry. `generate.py` continues to step 4 (feature
+extraction + merge) for the sessions that were labeled — it does not abort.
+Re-running resubmits only the remaining unlabeled sessions.
 
 *Retry with exponential backoff — HTTP-level calls only:*
 Batch submission and polling are quick synchronous HTTP calls where a transient
@@ -518,6 +554,10 @@ required (Python, TypeScript, C++ Claude Code sessions).
 parquet filenames to select a coarse subset, or `max_sessions` with random
 sampling. For sources where sessions map to known repos or folders, a
 `folder_limits` list provides the most control over which subset is included.
+
+`folder_limits` only applies to file-backed sources (`parquet`, `proprietary`)
+where sessions map to physical files. For `huggingface` sources it is ignored
+with a warning — use `max_sessions` instead to cap the session count.
 
 Selection is applied before labeling. The orchestrator logs how many sessions
 were filtered out and why.
@@ -657,18 +697,23 @@ git commit -m "data: migrate work_embedded_c artifact to schema v2"
 
 **Key properties of the `.gz` artifact:**
 - One row per step: `{session_id, step, schema_version, label, ...features}`
+- `schema_version` is stored per-row (not per session). Mixed versions across
+  rows (e.g. after a partial migration) are valid state detected by `--verify`.
 - Label provenance preserved: `label_source` field (`sonnet`, `heuristic`, etc.)
 - No raw session content (no tool outputs, no file contents)
 - Committed to the repo — enables reproducibility without raw sessions
+- Written via temp-file-then-rename to ensure atomic updates (safe against
+  crashes mid-write and concurrent invocations)
 
 **Artifact lifecycle — handling new, deleted, and evolved sessions:**
 
 *New sessions (raw files added since last run):*
-`generate.py` compares session IDs in the artifact against sessions found by
-the parser. Any session not yet in the artifact is treated as pending and runs
-the full label + extract pipeline. Results are added to the artifact by full
-rewrite (decompress → add rows → recompress) — gzip has no in-place append.
-Re-running two months later with new raw sessions just works.
+On startup, `generate.py` loads the artifact and builds a set of session IDs
+already present (one pass, fast for ~2,590 sessions). Any session found by the
+parser that is not in that set is treated as pending and runs the full label +
+extract pipeline. Results are added to the artifact by full rewrite (decompress
+→ add rows → recompress) via temp-file-then-rename — gzip has no in-place
+append. Re-running two months later with new raw sessions just works.
 
 *Deleted/lost raw sessions (raw file gone, artifact row present):*
 The artifact row is preserved as-is — it is the only surviving record of that
@@ -706,7 +751,7 @@ When the feature schema changes (new feature added, feature dropped, normalizati
 changed), existing labeled `.gz` files and cached feature files need migration
 rather than full re-extraction.
 
-### `src/migrate_features.py`
+### `src/pipeline/migrate_features.py`
 
 Applies incremental migrations to bring rows from any older `schema_version`
 to the current version. Each version bump has a corresponding migration
@@ -733,7 +778,7 @@ sources — those features are unavailable. The migration must either:
 
 **CLI:**
 ```
-python src/migrate_features.py data/sources/work_embedded_c_labeled.jsonl.gz --to-version 2
+python src/pipeline/migrate_features.py data/sources/work_embedded_c_labeled.jsonl.gz --to-version 2
 ```
 
 ---
@@ -753,7 +798,9 @@ python src/migrate_features.py data/sources/work_embedded_c_labeled.jsonl.gz --t
 
 `weight` controls sampling at training time. Values >1.0 oversample (repeat
 sessions), values <1.0 undersample (skip some sessions). Fractional weights
-are supported. The training script reads this file exclusively — it has no
+are supported. Weights are applied to the **training portion only** after the
+train/test split — the test set is always unweighted (each test session appears
+exactly once). The training script reads this file exclusively — it has no
 knowledge of sources or filters.
 
 ---
@@ -888,8 +935,12 @@ in any test. Tests must pass without `ANTHROPIC_API_KEY` set.
 - Each parser produces the expected step format from its fixture session
 - Edge cases: empty tool output, missing fields, session below `min_steps`
 - `model_filter` excludes non-Claude sessions
-- Malformed session (truncated JSON, missing keys) is skipped with a warning, not a crash
-- Session with 0 tool calls handled correctly
+- Malformed session (truncated JSON, missing keys) raises an exception — parsers
+  must never silently swallow errors. The caller (`generate.py`) catches the
+  exception, marks the session as `failed`, logs it, and continues with the
+  remaining sessions.
+- `compact` turns (claudeset) produce no steps — session step count unaffected
+- Session with 0 tool calls raises an exception (not a valid training session)
 
 **`test_label_session.py` — transcript compression + file validation**
 - Tool output capped at 500 chars, `[...]` suffix appended when truncated
