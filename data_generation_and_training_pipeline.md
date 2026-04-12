@@ -238,16 +238,18 @@ python src/orchestrate.py datasets/nlile/ datasets/dataclaw/ --workers 10
 }
 ```
 
-**On language filtering:** detecting the programming language from a session
-transcript is not reliably feasible without inspecting file extensions in tool
-call arguments, which varies by session and may be absent. Language-based
-filtering requires a spike to determine feasibility for each source format.
+**On language filtering (spike result — nlile):** language detection from file
+extensions in tool call arguments is feasible: ~96.3% of sessions are
+detectable, with only 1.7% undetectable. However, nlile is 96.3% Rust
+(the hyperswitch codebase), 1.9% JavaScript, 0.1% Python. There is essentially
+nothing non-Rust to filter to — `languages` is not a useful field for this
+source. For language diversity beyond Rust, entirely new data sources are
+required (Python, TypeScript, C++ Claude Code sessions).
 
-**Recommended approach for nlile:** use `folder_limits` with regex/glob
-patterns on parquet filenames, or `max_sessions` with random sampling, rather
-than language filtering. For sources where sessions map to known repos or
-folders, a `folder_limits` list provides coarse control over which subset is
-included.
+**Recommended approach for nlile:** use `folder_limits` with glob patterns on
+parquet filenames to select a coarse subset, or `max_sessions` with random
+sampling. For sources where sessions map to known repos or folders, a
+`folder_limits` list provides the most control over which subset is included.
 
 Selection is applied before labeling. The orchestrator logs how many sessions
 were filtered out and why.
