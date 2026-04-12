@@ -375,6 +375,28 @@ class TestCollectBatchResults:
                 )
             assert exc_info.value.code == 1
 
+    def test_missing_session_warns(self, capsys):
+        """Session in transcripts_by_id but absent from API results must log a warning.
+
+        Issue #4: currently returns None silently — callers can't distinguish
+        'API dropped it' from 'API returned an error for it'.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            transcripts = {"sess_present": ("t", 2), "sess_missing": ("t", 3)}
+            client = MagicMock()
+            # API only returns results for sess_present
+            client.messages.batches.results.return_value = [
+                self._make_success("sess_present", "P,S"),
+            ]
+            from src.pipeline.batch_label import _collect_batch_results
+
+            results, _ = _collect_batch_results(
+                client, "batch_x", "test_src", tmpdir, transcripts
+            )
+            assert results["sess_missing"] is None
+            captured = capsys.readouterr()
+            assert "sess_missing" in captured.err
+
 
 class TestRetryParseFailures:
     def _make_success(self, session_id: str, csv: str):
@@ -385,11 +407,18 @@ class TestRetryParseFailures:
         result_inner = SimpleNamespace(type="succeeded", message=message)
         return SimpleNamespace(custom_id=session_id, result=result_inner)
 
+    def _ended_status(self):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(processing_status="ended")
+
     def test_retry_success_returns_labels(self):
         """Session that failed first parse succeeds on retry — labels are returned."""
         with tempfile.TemporaryDirectory() as tmpdir:
             transcripts = {"sess_retry": ("transcript", 2)}
             client = MagicMock()
+            # retrieve must return "ended" so _poll_until_done exits immediately
+            client.messages.batches.retrieve.return_value = self._ended_status()
             client.messages.batches.results.return_value = [
                 self._make_success("sess_retry", "P,S"),
             ]
@@ -409,6 +438,7 @@ class TestRetryParseFailures:
         with tempfile.TemporaryDirectory() as tmpdir:
             transcripts = {"sess_bad": ("transcript", 2)}
             client = MagicMock()
+            client.messages.batches.retrieve.return_value = self._ended_status()
             # Retry also returns wrong count (3 for expected 2)
             client.messages.batches.results.return_value = [
                 self._make_success("sess_bad", "P,S,U"),
@@ -426,6 +456,149 @@ class TestRetryParseFailures:
             captured = capsys.readouterr()
             assert "discarding" in captured.err
             assert "sess_bad" in captured.err
+
+    def test_empty_failure_ids_does_not_submit(self):
+        """_retry_parse_failures with empty list must not call submit_batch.
+
+        Issue #9: currently would submit an empty batch, which the API rejects.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("src.pipeline.batch_label.submit_batch") as mock_submit:
+                from src.pipeline.batch_label import _retry_parse_failures
+
+                results = _retry_parse_failures(MagicMock(), "test_src", tmpdir, {}, [])
+            mock_submit.assert_not_called()
+            assert results == {}
+
+    def test_empty_transcript_skipped_with_warning(self, capsys):
+        """Session with empty transcript in failure_ids must be skipped, not retried.
+
+        Issue #7: on resume, sessions filtered from the current list get
+        empty-string transcripts. Retrying them sends '' to the API, guaranteed
+        to produce 0 labels for n_steps > 0 — causing another discard loop.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # sess_empty has empty transcript (simulates resume scenario)
+            transcripts = {"sess_empty": ("", 5), "sess_ok": ("real transcript", 2)}
+            client = MagicMock()
+            client.messages.batches.retrieve.return_value = self._ended_status()
+            client.messages.batches.results.return_value = [
+                self._make_success("sess_ok", "P,S"),
+            ]
+
+            with patch(
+                "src.pipeline.batch_label.submit_batch", return_value="batch_retry"
+            ), patch("src.pipeline.batch_label._get_client", return_value=client):
+                from src.pipeline.batch_label import _retry_parse_failures
+
+                results = _retry_parse_failures(
+                    client,
+                    "test_src",
+                    tmpdir,
+                    transcripts,
+                    ["sess_empty", "sess_ok"],
+                )
+            captured = capsys.readouterr()
+            # sess_empty must be warned about and skipped
+            assert "sess_empty" in captured.err
+            assert results.get("sess_empty") is None
+            # sess_ok still gets labeled
+            assert results.get("sess_ok") == ["PRODUCTIVE", "STUCK"]
+
+
+class TestPollAndRetrieveRetry:
+    """End-to-end retry path through poll_and_retrieve — issues #1, #2, #10."""
+
+    def _make_success(self, session_id: str, csv: str):
+        from types import SimpleNamespace
+
+        block = SimpleNamespace(text=csv)
+        message = SimpleNamespace(content=[block])
+        result_inner = SimpleNamespace(type="succeeded", message=message)
+        return SimpleNamespace(custom_id=session_id, result=result_inner)
+
+    def _ended_status(self):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(processing_status="ended")
+
+    def test_retry_batch_is_polled_before_results(self):
+        """After submitting retry batch, poll must happen before collecting results.
+
+        Issue #1: currently _retry_parse_failures calls _collect_batch_results
+        immediately after submit_batch — no _poll_until_done in between.
+        The retry batch is still in_progress when results are read.
+        """
+        from types import SimpleNamespace
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            client = MagicMock()
+            client.messages.batches.retrieve.return_value = self._ended_status()
+            # Main batch: wrong count → parse failure. Retry batch: correct count.
+            client.messages.batches.results.side_effect = [
+                iter([self._make_success("sess_1", "P,S,U,EXTRA")]),  # 4 for n=3
+                iter([self._make_success("sess_1", "P,S,U")]),
+            ]
+            client.messages.batches.create.return_value = SimpleNamespace(
+                id="retry_batch_id"
+            )
+
+            with patch("src.pipeline.batch_label._get_client", return_value=client):
+                from src.pipeline.batch_label import poll_and_retrieve
+
+                results = poll_and_retrieve(
+                    "main_batch",
+                    "nlile",
+                    tmpdir,
+                    {"sess_1": ("transcript", 3)},
+                )
+
+            # retrieve must have been called for the retry batch (proves it was polled)
+            retrieve_calls = [
+                c.args[0] for c in client.messages.batches.retrieve.call_args_list
+            ]
+            assert (
+                "retry_batch_id" in retrieve_calls
+            ), "retry batch was never polled — results read from in-progress batch"
+            assert results["sess_1"] == ["PRODUCTIVE", "STUCK", "UNSURE"]
+
+    def test_retry_does_not_leave_stale_pending_file(self):
+        """After poll_and_retrieve completes, pending_batch.json must not exist.
+
+        Issue #2: submit_batch always writes pending_batch.json. The retry calls
+        submit_batch while the main pending file is still on disk, clobbering it
+        with a file that contains only the retry session IDs. If the process crashes
+        mid-retry, the next resume would act on the wrong batch.
+        Fix: either delete pending before retry, or don't write it during retry.
+        """
+        from types import SimpleNamespace
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            client = MagicMock()
+            client.messages.batches.retrieve.return_value = self._ended_status()
+            client.messages.batches.results.side_effect = [
+                iter([self._make_success("sess_1", "P,S,U,EXTRA")]),  # parse failure
+                iter([self._make_success("sess_1", "P,S,U")]),  # retry ok
+            ]
+            client.messages.batches.create.return_value = SimpleNamespace(
+                id="retry_batch_id"
+            )
+
+            with patch("src.pipeline.batch_label._get_client", return_value=client):
+                from src.pipeline.batch_label import poll_and_retrieve
+
+                poll_and_retrieve(
+                    "main_batch",
+                    "nlile",
+                    tmpdir,
+                    {"sess_1": ("transcript", 3)},
+                )
+
+            pending_path = os.path.join(tmpdir, "pending_batch.json")
+            assert not os.path.exists(pending_path), (
+                "pending_batch.json still on disk after poll_and_retrieve — "
+                "retry submit_batch clobbered main pending file"
+            )
 
 
 class TestDryRunEstimate:

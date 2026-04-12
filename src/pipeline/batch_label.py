@@ -77,13 +77,16 @@ def submit_batch(
     transcripts: list[tuple[str, str, int]],
     source: str,
     labels_dir: str,
+    save_pending: bool = True,
 ) -> str:
-    """Submit one batch. Returns batch_id. Saves pending_batch.json.
+    """Submit one batch. Returns batch_id.
 
     Args:
         transcripts: list of (session_id, transcript_text, n_steps)
         source: source name for labeling
         labels_dir: directory to save pending_batch.json
+        save_pending: if True (default), write pending_batch.json for resume support.
+            Pass False for retry batches to avoid clobbering the main batch's pending file.
 
     Returns:
         batch_id string
@@ -110,26 +113,27 @@ def submit_batch(
     )
     batch_id = batch.id
 
-    os.makedirs(labels_dir, exist_ok=True)
-    pending_path = os.path.join(labels_dir, "pending_batch.json")
-    # Store n_steps per session so resume can reconstruct transcripts_by_id
-    # even if the caller's session list has changed since submission.
-    session_n_steps = {sid: n for sid, _, n in transcripts}
-    with open(pending_path, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "batch_id": batch_id,
-                "source": source,
-                "session_n_steps": session_n_steps,
-            },
-            f,
-        )
+    if save_pending:
+        os.makedirs(labels_dir, exist_ok=True)
+        pending_path = os.path.join(labels_dir, "pending_batch.json")
+        # Store n_steps per session so resume can reconstruct transcripts_by_id
+        # even if the caller's session list has changed since submission.
+        session_n_steps = {sid: n for sid, _, n in transcripts}
+        with open(pending_path, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "batch_id": batch_id,
+                    "source": source,
+                    "session_n_steps": session_n_steps,
+                },
+                f,
+            )
 
     print(f"Submitted batch {batch_id} ({len(requests)} requests)")
     return batch_id
 
 
-def _collect_batch_results(
+def _collect_batch_results(  # pylint: disable=too-many-branches
     client,
     batch_id: str,
     source: str,
@@ -199,6 +203,14 @@ def _collect_batch_results(
     if non_recoverable_found:
         sys.exit(1)
 
+    # Warn about sessions the API never returned results for
+    for sid, labels in results.items():
+        if labels is None and sid not in parse_failure_ids:
+            print(
+                f"WARNING: session {sid} missing from batch results",
+                file=sys.stderr,
+            )
+
     return results, parse_failure_ids
 
 
@@ -212,16 +224,38 @@ def _retry_parse_failures(
     """Submit a small follow-up batch for sessions whose CSV couldn't be parsed.
 
     Returns {session_id: labels_or_None} for the retried sessions only.
+    Sessions with an empty transcript (e.g. filtered out on resume) are skipped.
     """
-    retry_transcripts = [
-        (sid, transcripts_by_id[sid][0], transcripts_by_id[sid][1])
-        for sid in failure_ids
-    ]
+    if not failure_ids:
+        return {}
+
+    retry_transcripts = []
+    for sid in failure_ids:
+        transcript_text, n_steps = transcripts_by_id[sid]
+        if not transcript_text:
+            print(
+                f"WARNING: skipping retry for {sid} — transcript is empty "
+                "(session was filtered out before this run)",
+                file=sys.stderr,
+            )
+            continue
+        retry_transcripts.append((sid, transcript_text, n_steps))
+
+    if not retry_transcripts:
+        return {sid: None for sid in failure_ids}
+
     print(
         f"Retrying {len(retry_transcripts)} session(s) with bad label counts...",
         file=sys.stderr,
     )
-    retry_batch_id = submit_batch(retry_transcripts, source, labels_dir)
+    # submit_batch writes pending_batch.json; pass save_pending=False so the retry
+    # batch does not clobber the main batch's pending file on disk.
+    retry_batch_id = submit_batch(
+        retry_transcripts, source, labels_dir, save_pending=False
+    )
+
+    # Poll until done before reading results — the batch is in_progress right after submit.
+    _poll_until_done(client, retry_batch_id, labels_dir)
 
     retry_by_id = {sid: (text, n) for sid, text, n in retry_transcripts}
     retry_results, still_failing = _collect_batch_results(

@@ -187,7 +187,19 @@ class TestParseCsvLabels:
 
     def test_any_count_mismatch_raises(self):
         """Any label count != n_steps must raise — callers handle retry logic."""
-        for got, expected in [(307, 306), (57, 58), (512, 646)]:
+        # (640, 646): real production incident — 6 labels missing (genuine miscount)
+        # (57, 58):   real production incident — 1 label missing (off-by-one)
+        # (512, 646): real production incident — max_tokens truncation (now fixed)
+        for got, expected in [(640, 646), (57, 58), (512, 646)]:
             csv = ",".join(["P"] * got)
             with pytest.raises(ValueError, match="mismatch"):
                 parse_csv_labels(csv, expected)
+
+    def test_empty_middle_part_raises(self):
+        """Empty slot in the middle must not be silently dropped.
+
+        With n_steps=3 and "P,,S,U" (4 parts, 1 empty), the filter currently
+        compresses to 3 labels and silently accepts — masking a genuine miscount.
+        """
+        with pytest.raises(ValueError, match="empty"):
+            parse_csv_labels("P,,S,U", 3)

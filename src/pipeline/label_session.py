@@ -193,7 +193,11 @@ def parse_csv_labels(csv: str, n_steps: int) -> list[str]:
     """
     raw = csv.strip().rstrip(",")
     parts = [p.strip() for p in raw.split(",")]
-    # Filter empty strings that may appear from trailing commas
+    # Empty parts in the middle indicate a missing label, not a trailing comma.
+    for i, p in enumerate(parts[:-1]):
+        if not p:
+            raise ValueError(f"empty label part at position {i}")
+    # Filter trailing empty string from the one trailing comma we already stripped
     parts = [p for p in parts if p]
 
     labels = []
