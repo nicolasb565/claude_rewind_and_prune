@@ -76,11 +76,15 @@ Python (dataclaw_claude + masterclass), PHP/Java/JS/TS (claudeset). Missing: Go.
 
 **Per-source notes:**
 
+- `nlile` — Anthropic's internal Claude Code dataset; Claude-only by definition,
+  no model filter needed.
 - `dataclaw_claude` — woctordho/dataclaw is 85% non-Claude (Gemini, GPT). Use
-  `model_filter` in fetch.json to keep only the 69 Claude sessions. Same schema
-  and parser as the original dataclaw.
-- `masterclass` — all sessions are Claude; no model filter needed. Uses the same
-  schema as woctordho/dataclaw, so the same `dataclaw` parser applies.
+  `model_filter` in fetch.json to keep only the 69 Sonnet/Opus sessions. Haiku
+  is excluded — it may have different tool call patterns. Same schema and parser
+  as the original dataclaw.
+- `masterclass` — all sessions are Claude; no model filter needed. Schema
+  verified by inspection to match woctordho/dataclaw, so the same `dataclaw`
+  parser applies. Verify schema compatibility before implementing the parser.
 - `claudeset` — lelouch0110/claudeset-community contains 13 synthetic sessions
   (model field `<synthetic>`); use `model_filter` to exclude them. Different turn
   schema from dataclaw — requires its own `claudeset` parser. Turn format:
@@ -171,7 +175,7 @@ Label encoding: `PRODUCTIVE=0.0`, `UNSURE=0.5`, `STUCK=1.0`.
 
 ## Modules
 
-### `src/label_session.py`
+### `src/pipeline/label_session.py`
 
 Labels one session using the Anthropic SDK (Message Batches API).
 
@@ -190,10 +194,14 @@ any step, so there is no partial completion for labels. Pass `--force` to force
 re-labeling even on a valid file.
 
 **Prompt contract:**
-- System prompt explains the PRODUCTIVE / STUCK / UNSURE definitions — keep
-  short (~500 tokens); it is sent with every request
+- System prompt explains the PRODUCTIVE / STUCK / UNSURE definitions — target
+  ~500 tokens; this is a guideline, not a hard constraint. The cost estimate
+  has headroom. If calibration shows the prompt needs more examples to label
+  correctly, add them — correctness beats token frugality.
 - User message contains the full transcript + explicit step count; tool outputs
-  truncated to 500 chars to minimize input tokens
+  truncated to 500 chars of content, then `[...]` appended if truncated (so
+  truncated outputs are at most 503 chars). Outputs under 500 chars pass through
+  unchanged with no suffix.
 - Output format: compact CSV `P,S,U,P,P,S` (single chars, comma-separated) —
   ~7x fewer output tokens than JSON array of strings
 - Python splits on commas, maps `P→PRODUCTIVE`, `S→STUCK`, `U→UNSURE`
@@ -220,7 +228,7 @@ Common patterns:
 - First attempt at any command → P
 - Same command, same error, second or third time → S
 - Trying a different file, flag, or approach after failure → P
-- Reading a file already read, with no new context → S
+- Reading a file already read (same path appears earlier in the transcript) → S
 - Tight compile/test loop with unchanged failure → S
 
 Transition rules:
@@ -268,7 +276,7 @@ looks correct across all sources.
 **API strategy:**
 - Uses Anthropic Message Batches API (50% discount, separate rate limits)
 - One batch request per session — Sonnet sees full sequential context
-- Batches submitted via `src/batch_label.py` (see Orchestrator section)
+- Batches submitted via `src/pipeline/batch_label.py`
 - Output tokens are cheap; input token compression is the main cost lever
 
 **Cost estimate (validated by experiment):**
@@ -285,16 +293,18 @@ With a minimal system prompt (~500 tokens) as used in the Batch API:
 - Per step: ~**120 tokens/step** (vs 338 in the uncompressed pilot)
 - All sources: ~71,000 steps × 120 tokens = **~8.5M input tokens**
 - At batch pricing ($1.50/MTok input, $7.50/MTok output): **~$13 total**
+- Cost estimate based on one 53-step nlile session; step count distributions for
+  masterclass and claudeset are unknown — verify per-source during calibration
 - Run 5 sessions per source first (~25 total, ~$0.25) to calibrate before committing credits
 
 **CLI:**
 ```
-python src/label_session.py <session_transcript_path> --source <name> --out data/labels/
+python src/pipeline/label_session.py <session_transcript_path> --source <name> --out data/labels/
 ```
 
 ---
 
-### `src/extract_features.py`
+### `src/pipeline/extract_features.py`
 
 Computes per-step numeric features from a raw session. No LLM calls.
 
@@ -316,12 +326,12 @@ Pass `--force` to re-extract even on a valid file.
 
 **CLI:**
 ```
-python src/extract_features.py <raw_session_path> --source <name> --out data/features/
+python src/pipeline/extract_features.py <raw_session_path> --source <name> --out data/features/
 ```
 
 ---
 
-### `src/merge_session.py`
+### `src/pipeline/merge_session.py`
 
 Merges label file and feature file for one session into training rows.
 
@@ -334,15 +344,17 @@ Merges label file and feature file for one session into training rows.
 
 **CLI:**
 ```
-python src/merge_session.py --labels <path> --features <path> --out <path>
+python src/pipeline/merge_session.py --labels <path> --features <path> --out <path>
 ```
 
 ---
 
-### `src/batch_label.py`
+### `src/pipeline/batch_label.py`
 
 Submits pending sessions to the Anthropic Message Batches API and retrieves
-results. Decoupled from the orchestrator so it can be run independently.
+results. Called by `generate.py` with a list of source directories; discovers
+pending sessions itself by scanning `data/labels/<source>/`. Can also be run
+independently.
 
 **Behavior:**
 1. Scan `data/labels/<source>/` — collect sessions without a complete label file
@@ -410,15 +422,15 @@ takes priority: abort and report the non-recoverable issue first.
 
 **Cost calibration run:**
 ```
-python src/batch_label.py datasets/nlile/ --max-sessions 5 --dry-run-estimate
+python src/pipeline/batch_label.py datasets/nlile/ --max-sessions 5 --dry-run-estimate
 ```
 Prints estimated token count and cost for 5 sessions before submitting,
 so you can calibrate the full-run cost before committing credits.
 
 **CLI:**
 ```
-python src/batch_label.py datasets/nlile/ datasets/dataclaw_claude/
-python src/batch_label.py datasets/nlile/ --max-sessions 5   # cost calibration
+python src/pipeline/batch_label.py datasets/nlile/ datasets/dataclaw_claude/
+python src/pipeline/batch_label.py datasets/nlile/ --max-sessions 5   # cost calibration
 ```
 
 ---
@@ -447,18 +459,22 @@ python generate.py datasets/nlile/ --max-sessions 5   # calibration run
 3. Run `pipeline/batch_label.py` — submit/retrieve labels for all pending sessions
 4. For each labeled session:
    - Run `pipeline/extract_features.py` (skip if feature file is current and complete)
-   - Run `pipeline/merge_session.py`
+   - Run `pipeline/merge_session.py` — appends rows to `data/generated/<source>_v<N>.jsonl`
    - Mark session as `done` in progress file immediately on success
    - Mark session as `failed` on error, continue with remaining sessions
-5. Write `data/generated/<source>_v<N>.jsonl` from all completed sessions
-6. Print summary: done / failed / pending per source
+5. Print summary: done / failed / pending per source
+
+Note: the JSONL file is built incrementally by `merge_session.py` appending
+one session at a time — `generate.py` does not write it directly. Re-running
+skips already-merged sessions via the progress file, so no duplicate rows are
+written.
 
 **Resume behavior:** re-running with the same arguments resumes from where
 it left off. Sessions with existing valid label and feature files are skipped.
 In-flight batches are detected via `pending_batch.json` and polled rather than
 resubmitted.
 
-**Progress tracking** — `data/generated/<source>_progress.json`:
+**Progress tracking** — `data/generated/<source>_v<N>_progress.json` (version-keyed to match the JSONL file; a schema version bump starts a fresh progress file):
 ```json
 {
   "total": 5000,
@@ -544,7 +560,7 @@ Supported `type` values:
   "parser": "dataclaw",
   "model_filter": ["anthropic/claude-opus-4-6", "claude-opus-4-6",
                    "anthropic/claude-sonnet-4-6", "claude-opus-4-5-20251101",
-                   "claude-haiku-4-5-20251001", "openrouter/anthropic/claude-opus-4.6"],
+                   "openrouter/anthropic/claude-opus-4.6"],
   "description": "Claude-only sessions from woctordho/dataclaw (69/453 sessions)"
 }
 ```
@@ -601,6 +617,8 @@ extraction entirely. The pipeline is:
 4. Write to `data/generated/<source>_v<N>.jsonl`
 
 `filter.json` is ignored for `labeled_gz` sources — the dataset is fixed.
+If a `filter.json` exists alongside a `labeled_gz` fetch.json, `generate.py`
+prints a warning so the user knows the filter has no effect.
 
 ---
 
@@ -648,7 +666,8 @@ git commit -m "data: migrate work_embedded_c artifact to schema v2"
 *New sessions (raw files added since last run):*
 `generate.py` compares session IDs in the artifact against sessions found by
 the parser. Any session not yet in the artifact is treated as pending and runs
-the full label + extract pipeline. Results are appended to the artifact.
+the full label + extract pipeline. Results are added to the artifact by full
+rewrite (decompress → add rows → recompress) — gzip has no in-place append.
 Re-running two months later with new raw sessions just works.
 
 *Deleted/lost raw sessions (raw file gone, artifact row present):*
@@ -732,8 +751,10 @@ python src/migrate_features.py data/sources/work_embedded_c_labeled.jsonl.gz --t
 }
 ```
 
-`weight` controls oversampling at training time. The training script reads
-this file exclusively — it has no knowledge of sources or filters.
+`weight` controls sampling at training time. Values >1.0 oversample (repeat
+sessions), values <1.0 undersample (skip some sessions). Fractional weights
+are supported. The training script reads this file exclusively — it has no
+knowledge of sources or filters.
 
 ---
 
@@ -752,6 +773,9 @@ the manifest. It is not baked into the `.jsonl` files. This means:
   for existing sessions — the same seed maps them to the same partition
 - Session IDs are sorted before splitting to ensure determinism regardless of
   filesystem ordering
+- Session IDs are globally unique across sources: each source prefixes IDs with
+  its source name (e.g. `nlile_26b99063-...`, `dataclaw_abc123-...`). The prefix
+  is added by the parser — no two sources will produce the same session ID.
 - The split is logged at training time: total sessions, train sessions, test sessions,
   STUCK prevalence in each split
 
