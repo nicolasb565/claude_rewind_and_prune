@@ -1,7 +1,0 @@
-{
-  "type": "proprietary",
-  "path": "data/separate/work_embedded_c/",
-  "parser": "dataclaw",
-  "artifact": "data/sources/work_embedded_c_labeled.jsonl.gz",
-  "description": "Proprietary embedded C sessions — raw sessions local only"
-}
