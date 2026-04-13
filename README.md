@@ -69,21 +69,21 @@ When the MLP fires, it injects a corrective message into the conversation. If th
 
 ## Per-Step MLP Stuck Detector (v5)
 
-A 5,569-parameter per-step MLP trained on ~306K labeled steps from real Claude Code sessions. Uses an N=5 ring buffer of historical features and previous scores — the model sees the current step alongside the 5 preceding steps, giving it direct access to the repetition signal without windowing heuristics.
+A 5,249-parameter per-step MLP trained on ~306K labeled steps from real Claude Code sessions. Uses an N=5 ring buffer of historical features — the model sees the current step alongside the 5 preceding steps' features, giving it direct access to the repetition signal without windowing heuristics.
 
 ### Architecture
 
 ```
-Input: [features_T(8), features_T-1(8), ..., features_T-5(8), score_T-1, ..., score_T-5]
-       = 8 × 6 + 5 = 53 floats
+Input: [features_T(8), features_T-1(8), ..., features_T-5(8)]
+       = 8 × 6 = 48 floats
 
-Linear(53, 64) → ReLU → Linear(64, 32) → ReLU → Linear(32, 1) → Sigmoid
+Linear(48, 64) → ReLU → Linear(64, 32) → ReLU → Linear(32, 1) → Sigmoid
 ```
 
 - **Features per step (8):** `tool_idx`, `cmd_hash`, `file_hash`, `output_similarity`, `has_prior_output`, `output_length`, `is_error`, `step_index_norm`
 - **Ring buffer depth:** N=5 (covers 85.4% of observed stuck loops)
-- **Score dims:** Not normalized — left in [0,1] to avoid train/inference mismatch (trimodal {0, 0.5, 1} training labels vs continuous sigmoid at inference)
-- **Size:** ~60 KB JSON weights, runs in pure JS (no Python, no GPU)
+- **No score feedback:** an earlier variant included 5 previous-score dims for a 53-dim input, but ablation showed identical F1 with or without them. Dropping them removes a train/inference distribution mismatch (training fed perfect labels, inference fed continuous sigmoid output).
+- **Size:** ~110 KB JSON weights, runs in pure JS (no Python, no GPU)
 
 ### Results
 
@@ -91,31 +91,34 @@ Linear(53, 64) → ReLU → Linear(64, 32) → ReLU → Linear(32, 1) → Sigmoi
 
 | Metric | Value |
 |---|---|
-| Precision | 97.2% |
-| Recall | 95.1% |
+| Precision | 97.4% |
+| Recall | 94.9% |
 | F1 | 0.961 |
 | Threshold | 0.5 |
-| Parameters | 5,569 |
-| Weights | ~60 KB |
+| Parameters | 5,249 |
+| Input dim | 48 |
 
 **Score distribution on the test set** (n=13,679 STUCK, n=18,116 PRODUCTIVE):
 
 | Percentile | STUCK | PRODUCTIVE |
 |---|---|---|
-| p50 | 1.000 | 0.014 |
-| p75 | 1.000 | 0.056 |
-| p90 | 1.000 | 0.163 |
-| p95 | 1.000 | 0.297 |
-| p99 | 1.000 | 0.661 |
+| p50 | 0.999 | 0.009 |
+| p75 | 1.000 | 0.044 |
+| p90 | 1.000 | 0.137 |
+| p95 | 1.000 | 0.264 |
+| p99 | 1.000 | 0.653 |
 
-The median STUCK step scores 1.000; 95% of productive steps score below 0.297. The threshold of 0.5 sits well inside the gap between the two distributions.
+The median STUCK step scores 0.999; 95% of productive steps score below 0.264. The threshold of 0.5 sits well inside the gap between the two distributions.
 
 **Improvement over v4 (windowed CNN):**
 
-| Model | Architecture | Params | F1 | Recall |
-|---|---|---|---|---|
-| v4 CNN | Conv1d, 10-step windows | 2,605 | 0.908 | 0.859 |
-| v5 MLP (this) | Per-step + ring buffer | 5,569 | 0.961 | 0.951 |
+| Model | Architecture | Params | Input dim | F1 | Recall |
+|---|---|---|---|---|---|
+| v4 CNN | Conv1d, 10-step windows | 2,605 | — | 0.908 | 0.859 |
+| v5 MLP (53-dim) | Per-step + ring + score feedback | 5,569 | 53 | 0.961 (inflated) | 0.951 |
+| **v5 MLP (current)** | **Per-step + ring buffer** | **5,249** | **48** | **0.961** | **0.949** |
+
+The 53-dim variant's F1 was inflated by teacher forcing (training filled the score buffer with perfect ground-truth labels, so test eval saw the same — not what the proxy actually does at inference). The 48-dim variant matches that F1 honestly: eval = inference by construction since there's no feedback loop.
 
 ## Data Pipeline
 
@@ -152,10 +155,13 @@ python generate.py
 # Re-extract features without re-labeling (useful after schema changes)
 python generate.py --skip-labeling
 
-# Train the v5 MLP
-python train.py
+# Train the v5 MLP (current production model — 48-dim, no score feedback)
+python src/training/train.py --no-score-history
 
-# Outputs:
+# Or train the legacy 53-dim variant with score history feedback for comparison
+python src/training/train.py
+
+# Outputs (relative to repo root):
 #   proxy/stuck_checkpoint.pt   — PyTorch checkpoint
 #   proxy/stuck_weights.json    — JSON weights for JS inference
 #   proxy/stuck_config.json     — Config + metrics
@@ -205,11 +211,11 @@ The ring buffer provides the repetition signal directly: if `cmd_hash` at T equa
 
 ## Key Findings
 
-1. **Per-step with history beats sliding windows.** Moving from a 10-step windowed CNN (2,605 params, F1=0.908) to a per-step MLP with N=5 ring buffer (5,569 params, F1=0.961) improved recall by 9.2 points (0.859→0.951). The ring buffer exposes the repetition signal directly rather than aggregating it away.
+1. **Per-step with history beats sliding windows.** Moving from a 10-step windowed CNN (2,605 params, F1=0.908) to a per-step MLP with N=5 ring buffer (5,249 params, F1=0.961) improved recall by 9.0 points (0.859→0.949). The ring buffer exposes the repetition signal directly rather than aggregating it away.
 
 2. **Stuck loop analysis.** 65% of observed stuck runs are single-step (the agent repeats one command). N=5 history covers 85.4% of multi-step stuck loops, making it the optimal depth without adding noisy padding for rare deep loops.
 
-3. **Score dims must not be normalized.** Training labels are trimodal {0, 0.5, 1}; inference scores are continuous sigmoid outputs. Normalizing the score dims with training-set statistics causes a train/inference mismatch — kept in raw [0,1] space.
+3. **Score feedback was dead weight.** An earlier 53-dim variant fed the model's own previous 5 scores back as input. Training filled those slots with ground-truth labels (teacher forcing); inference filled them with continuous sigmoid output — a distribution mismatch the model never saw during training. Ablation showed F1=0.961 with or without those 5 dims, so they were dropped. The model relies entirely on per-step features (especially `output_similarity`) for the repetition signal.
 
 4. **CRC32 identity is learnable.** Hash values aren't meaningful as magnitudes, but when the same command appears in consecutive history slots, the MLP sees near-zero differences between those positions — a learnable equality signal without explicit equality features.
 
