@@ -33,8 +33,7 @@ Proxy (localhost:8080)
 ### Usage
 
 ```bash
-cd proxy
-node proxy_cnn.mjs &
+node proxy/proxy.mjs &
 
 # Run vanilla Claude Code through the proxy
 ANTHROPIC_BASE_URL=http://localhost:8080 claude "your prompt"
@@ -49,9 +48,12 @@ ANTHROPIC_BASE_URL=http://localhost:8080 claude "your prompt"
 | `PROXY_PORT` | `8080` | Listen port |
 | `PROXY_UPSTREAM` | `https://api.anthropic.com` | Upstream API |
 | `STUCK_ENABLED` | `1` | Enable stuck detection |
-| `STUCK_COOLDOWN` | `5` | Turns between nudges |
-| `STUCK_RESET_THRESHOLD` | `threshold × 0.94` | Score must drop below this to reset nudge escalation |
 | `COMPACT_ENABLED` | `0` | Auto-compact Bash outputs (optional) |
+| `PROXY_MAX_RETRIES` | `8` | Max retries on 429/529 |
+| `PROXY_MAX_CONCURRENT` | `5` | Max in-flight upstream requests |
+| `LOG_DIR` | `~/.stuck-detector/logs/` | JSONL event log directory |
+
+Threshold and cooldowns are read from `proxy/stuck_config.json` (written by `train.py`).
 
 ### Escalating Nudge
 
@@ -63,7 +65,7 @@ When the MLP fires, it injects a corrective message into the conversation. If th
 | 1 (medium) | Still stuck after cooldown | Demands a 3-step explicit diagnosis before the next tool call |
 | 2 (hard) | Still stuck after two cooldowns | STOP directive — no tool calls until root cause is stated |
 
-`nudgeLevel` resets to 0 when the MLP score drops below `STUCK_RESET_THRESHOLD` (default: threshold × 0.94), indicating the agent has responded and moved on.
+`nudgeLevel` resets to -1 when the MLP score drops below `threshold × 0.94`, even during a cooldown window — the next detection will be silently absorbed before firing at level 0 again.
 
 ## Per-Step MLP Stuck Detector (v5)
 
@@ -233,10 +235,9 @@ This work combines: proxy-based interception, tool-call behavioral features, a t
 
 ## Next Steps
 
-1. Update proxy (`proxy_cnn.mjs`, `stuck_cnn.mjs`, `abstract_step.mjs`) to use the v5 per-step MLP instead of the windowed CNN
-2. Run a held-out benchmark to validate v5 generalization (expected: similar improvement over v4 benchmark F1=0.714)
-3. Feature ablation study on the 8 features — `has_prior_output` and `step_index_norm` are candidates for removal
-4. Collect more sessions with extended thinking blocks — DataClaw (26 sessions) is the only current source
+1. Run a held-out benchmark to validate v5 generalization on out-of-distribution code (expected: similar improvement over v4 benchmark F1=0.714)
+2. Feature ablation study on the 8 features — `step_index_norm` (train/inference mismatch) and `has_prior_output` are the first candidates for removal
+3. Collect more sessions with extended thinking blocks — DataClaw (26 sessions) is the only current source
 
 ## License
 
