@@ -4,7 +4,6 @@
     {"source_dir": "datasets/nlile/",           "path": "data/generated/nlile_v3.jsonl",           "weight": 1.0},
     {"source_dir": "datasets/dataclaw_claude/",  "path": "data/generated/dataclaw_claude_v3.jsonl", "weight": 1.0},
     {"source_dir": "datasets/masterclass/",      "path": "data/generated/masterclass_v3.jsonl",     "weight": 1.0},
-    {"source_dir": "datasets/claudeset/",        "path": "data/generated/claudeset_v3.jsonl",       "weight": 1.0},
-    {"source_dir": "datasets/work_embedded_c/",  "path": "data/generated/work_embedded_c_v3.jsonl", "weight": 1.0}
+    {"source_dir": "datasets/claudeset/",        "path": "data/generated/claudeset_v3.jsonl",       "weight": 1.0}
   ]
 }
