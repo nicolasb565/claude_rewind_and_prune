@@ -2,28 +2,21 @@
  * Telemetry logging — JSONL to ~/.stuck-detector/logs/
  */
 
-import { appendFileSync, mkdirSync, existsSync } from "fs";
-import { join } from "path";
-import { homedir } from "os";
+import { appendFileSync, mkdirSync, existsSync } from 'fs'
+import { join } from 'path'
+import { homedir } from 'os'
 
-const logDir =
-  process.env.LOG_DIR || join(homedir(), ".stuck-detector", "logs");
+const logDir = process.env.LOG_DIR || join(homedir(), '.stuck-detector', 'logs')
 
 if (!existsSync(logDir)) {
-  mkdirSync(logDir, { recursive: true });
+  mkdirSync(logDir, { recursive: true })
 }
 
-const sessionId =
-  Math.random().toString(36).slice(2, 10) +
-  "-" +
-  Date.now().toString(36);
+const sessionId = Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36)
 
-const logFile = join(
-  logDir,
-  `events-${new Date().toISOString().slice(0, 10)}.jsonl`,
-);
+const logFile = join(logDir, `events-${new Date().toISOString().slice(0, 10)}.jsonl`)
 
-const VERBOSE = process.env.VERBOSE === "1";
+const VERBOSE = process.env.VERBOSE === '1'
 
 export function log(type, data) {
   const entry = {
@@ -31,19 +24,19 @@ export function log(type, data) {
     timestamp: Date.now(),
     type,
     ...data,
-  };
+  }
   try {
-    appendFileSync(logFile, JSON.stringify(entry) + "\n");
+    appendFileSync(logFile, JSON.stringify(entry) + '\n')
   } catch {
     // best-effort
   }
   if (VERBOSE) {
-    process.stderr.write("[proxy] " + JSON.stringify(entry) + "\n");
+    process.stderr.write('[proxy] ' + JSON.stringify(entry) + '\n')
   }
 }
 
 export function logRequest(method, url, messageCount) {
-  if (process.env.LOG_REQUESTS === "1") {
-    log("request", { method, url, messageCount });
+  if (process.env.LOG_REQUESTS === '1') {
+    log('request', { method, url, messageCount })
   }
 }

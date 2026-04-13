@@ -1,0 +1,13 @@
+{
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "lint": "eslint *.mjs",
+    "format": "prettier --write *.mjs test/",
+    "check": "eslint *.mjs && prettier --check *.mjs test/"
+  },
+  "devDependencies": {
+    "eslint": "^10.2.0",
+    "prettier": "^3.8.2"
+  }
+}

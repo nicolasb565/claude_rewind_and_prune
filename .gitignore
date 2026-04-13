@@ -14,11 +14,13 @@ data/
 !data/sources/*_labeled.jsonl.gz
 !data/sources/test_trajectories.txt
 
-# PyTorch checkpoints (cnn_weights.json is the portable format)
-proxy/cnn_checkpoint.pt
-proxy/cnn_trimmed_checkpoint.pt
-proxy/cnn_streak_checkpoint.pt
+# PyTorch checkpoints
+proxy/stuck_checkpoint.pt
+proxy/*_checkpoint.pt
 
 # Derived benchmark output
 proxy/benchmark_summary.json
+
+# Generated test fixtures (reproducible via generate_test_vectors.py)
+proxy/test/mlp_parity_vectors.json
 .env
