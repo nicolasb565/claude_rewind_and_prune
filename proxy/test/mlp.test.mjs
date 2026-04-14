@@ -13,25 +13,25 @@ describe('MLP', () => {
   const mlp = loadMLP(WEIGHTS_PATH)
 
   test('output is in [0, 1] for zero input', () => {
-    const score = mlp.forward(new Float32Array(48))
+    const score = mlp.forward(new Float32Array(42))
     assert.ok(score >= 0 && score <= 1, `Score ${score} out of [0,1]`)
   })
 
   test('output is in [0, 1] for all-ones input', () => {
-    const score = mlp.forward(new Float32Array(48).fill(1))
+    const score = mlp.forward(new Float32Array(42).fill(1))
     assert.ok(score >= 0 && score <= 1, `Score ${score} out of [0,1]`)
   })
 
   test('output is finite for random inputs', () => {
     for (let i = 0; i < 10; i++) {
-      const input = new Float32Array(48).map(() => Math.random() * 2 - 1)
+      const input = new Float32Array(42).map(() => Math.random() * 2 - 1)
       assert.ok(Number.isFinite(mlp.forward(input)))
     }
   })
 
   test('different inputs produce different outputs', () => {
-    const a = mlp.forward(new Float32Array(48).fill(0))
-    const b = mlp.forward(new Float32Array(48).fill(1))
+    const a = mlp.forward(new Float32Array(42).fill(0))
+    const b = mlp.forward(new Float32Array(42).fill(1))
     assert.notEqual(a, b)
   })
 

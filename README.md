@@ -69,56 +69,60 @@ When the MLP fires, it injects a corrective message into the conversation. If th
 
 ## Per-Step MLP Stuck Detector (v5)
 
-A 5,249-parameter per-step MLP trained on ~306K labeled steps from real Claude Code sessions. Uses an N=5 ring buffer of historical features — the model sees the current step alongside the 5 preceding steps' features, giving it direct access to the repetition signal without windowing heuristics.
+A 4,865-parameter per-step MLP trained on ~306K labeled steps from real Claude Code sessions. Uses an N=5 ring buffer of historical features — the model sees the current step alongside the 5 preceding steps' features, giving it direct access to the repetition signal without windowing heuristics.
 
 ### Architecture
 
 ```
-Input: [features_T(8), features_T-1(8), ..., features_T-5(8)]
-       = 8 × 6 = 48 floats
+Input: [features_T(7), features_T-1(7), ..., features_T-5(7)]
+       = 7 × 6 = 42 floats
 
-Linear(48, 64) → ReLU → Linear(64, 32) → ReLU → Linear(32, 1) → Sigmoid
+Linear(42, 64) → ReLU → Linear(64, 32) → ReLU → Linear(32, 1) → Sigmoid
 ```
 
-- **Features per step (8):** `tool_idx`, `cmd_hash`, `file_hash`, `output_similarity`, `has_prior_output`, `output_length`, `is_error`, `step_index_norm`
+- **Features per step (7):** `tool_idx`, `cmd_hash`, `file_hash`, `output_similarity`, `has_prior_output`, `output_length`, `is_error`
 - **Ring buffer depth:** N=5 (covers 85.4% of observed stuck loops)
-- **No score feedback:** an earlier variant included 5 previous-score dims for a 53-dim input, but ablation showed identical F1 with or without them. Dropping them removes a train/inference distribution mismatch (training fed perfect labels, inference fed continuous sigmoid output).
-- **Size:** ~110 KB JSON weights, runs in pure JS (no Python, no GPU)
+- **Reproduce:** `python src/training/train.py --no-score-history --exclude-feature step_index_norm` (seed=42 default)
+- **Size:** ~100 KB JSON weights, runs in pure JS (no Python, no GPU)
 
-### Results
+### Results (multi-seed)
 
-**Test set** (held-out sessions from training data):
+5-seed mean ± std on the held-out test set, threshold=0.5:
 
 | Metric | Value |
 |---|---|
-| Precision | 97.4% |
-| Recall | 94.9% |
-| F1 | 0.961 |
-| Threshold | 0.5 |
-| Parameters | 5,249 |
-| Input dim | 48 |
+| F1 | 0.9548 ± 0.0054 |
+| Precision | 0.9650 ± 0.0065 |
+| Recall | 0.9447 ± 0.0064 |
+| Parameters | 4,865 |
+| Input dim | 42 |
 
-**Score distribution on the test set** (n=13,679 STUCK, n=18,116 PRODUCTIVE):
+**Score distribution on the test set** (seed=42 production model, n=13,679 STUCK, n=18,116 PRODUCTIVE):
 
 | Percentile | STUCK | PRODUCTIVE |
 |---|---|---|
-| p50 | 0.999 | 0.009 |
-| p75 | 1.000 | 0.044 |
-| p90 | 1.000 | 0.137 |
-| p95 | 1.000 | 0.264 |
-| p99 | 1.000 | 0.653 |
+| p50 | 0.999 | ~0.01 |
+| p95 | 1.000 | ~0.27 |
+| p99 | 1.000 | ~0.66 |
 
-The median STUCK step scores 0.999; 95% of productive steps score below 0.264. The threshold of 0.5 sits well inside the gap between the two distributions.
+The median STUCK step scores ~1.0; 95% of productive steps score well below the threshold. The threshold of 0.5 sits well inside the gap between the two distributions.
 
-**Improvement over v4 (windowed CNN):**
+**Model evolution:**
 
-| Model | Architecture | Params | Input dim | F1 | Precision | Recall |
-|---|---|---|---|---|---|---|
-| v4 CNN | Conv1d, 10-step windows | 2,605 | — | 0.908 | — | 0.859 |
-| v5 MLP (53-dim) | Per-step + ring + score feedback | 5,569 | 53 | 0.9614 | 0.9722 | 0.9508 |
-| **v5 MLP (current)** | **Per-step + ring buffer** | **5,249** | **48** | **0.9610** | **0.9737** | **0.9486** |
+| Model | Architecture | Params | Input dim | F1 (mean) |
+|---|---|---|---|---|
+| v4 CNN | Conv1d, 10-step windows | 2,605 | — | 0.908 |
+| v5 MLP (53-dim) | Per-step + ring + score feedback | 5,569 | 53 | 0.961 (teacher-forced eval, inflated) |
+| v5 MLP (48-dim) | Per-step + ring buffer | 5,249 | 48 | 0.9559 ± 0.0046 |
+| **v5 MLP (current)** | **48-dim minus step_index_norm** | **4,865** | **42** | **0.9548 ± 0.0054** |
 
-The 53-dim variant scored very slightly higher on F1 and recall (within training noise), but its eval used teacher forcing for the score history dims — training filled them with perfect ground-truth labels, and so did test eval. The proxy can't do that at inference (no labels available); it would have to feed its own sigmoid output back, which is out of the training distribution. The 48-dim variant has eval = inference by construction since there's no feedback loop, so its F1 is the honest production number. We picked it for that reason plus the smaller param count.
+### Why we dropped two feature groups
+
+**Score feedback (5 dims)** — an earlier variant fed the model's own previous 5 sigmoid scores back as input. Training filled those slots with ground-truth labels (teacher forcing); inference would fill them with continuous sigmoid output that the model never saw during training. Multi-seed ablation showed F1 = 0.9559 ± 0.0046 with score feedback vs 0.9548 ± 0.0054 without — statistically equivalent. We dropped it to eliminate the train/inference distribution mismatch and shrink the model.
+
+**`step_index_norm`** — at training time this was `step / (total_steps - 1)`; at inference the proxy doesn't know `total_steps` and used `min(step / 100, 1.0)`. A known approximation. Multi-seed ablation showed F1 = 0.9548 ± 0.0054 without it (vs 0.9559 ± 0.0046 with it) — within noise. Dropped to eliminate the second train/inference mismatch and shrink the model further.
+
+The remaining 6 features (`file_hash`, `has_prior_output`, `output_length`, `is_error`, `tool_idx`, `cmd_hash`, `output_similarity`) were all individually tested with 5-seed ablation; every single-feature drop landed within the cross-seed noise range, so none was strictly removable, but none had the train/inference issues that `step_index_norm` and score feedback had. See `src/training/run_ablation.py` and `src/training/compare_ablation.py` to reproduce the matrix.
 
 ## Data Pipeline
 
@@ -155,11 +159,12 @@ python generate.py
 # Re-extract features without re-labeling (useful after schema changes)
 python generate.py --skip-labeling
 
-# Train the v5 MLP (current production model — 48-dim, no score feedback)
-python src/training/train.py --no-score-history
+# Train the v5 MLP (current production model — 42-dim, no score feedback, no step_index_norm)
+python src/training/train.py --no-score-history --exclude-feature step_index_norm
 
-# Or train the legacy 53-dim variant with score history feedback for comparison
-python src/training/train.py
+# Or run the full multi-seed ablation matrix (used to pick the production feature set)
+python src/training/run_ablation.py --seeds 5
+python src/training/compare_ablation.py
 
 # Outputs (relative to repo root):
 #   proxy/stuck_checkpoint.pt   — PyTorch checkpoint
@@ -194,7 +199,7 @@ python src/training/train.py
 | masterclass | HuggingFace | 58 | 5,531 | Mixed sessions |
 | claudeset | HuggingFace | 39 | 2,961 | Mixed sessions |
 
-### Feature Set (8 per-step features)
+### Feature Set (7 per-step features)
 
 | Feature | Signal |
 |---|---|
@@ -205,21 +210,28 @@ python src/training/train.py
 | `has_prior_output` | Whether this exact command has been run before in the session |
 | `output_length` | `log1p(output_line_count)` |
 | `is_error` | Error indicators in output |
-| `step_index_norm` | Position in session, normalized to [0,1] |
+
+`step_index_norm` (position in session) was dropped after multi-seed ablation — see Key Findings #3.
 
 The ring buffer provides the repetition signal directly: if `cmd_hash` at T equals `cmd_hash` at T-2, the MLP sees identical values in the current features and in history slot T-2. No windowing or aggregation needed.
 
 ## Key Findings
 
-1. **Per-step with history beats sliding windows.** Moving from a 10-step windowed CNN (2,605 params, F1=0.908) to a per-step MLP with N=5 ring buffer (5,249 params, F1=0.961) improved recall by 9.0 points (0.859→0.949). The ring buffer exposes the repetition signal directly rather than aggregating it away.
+1. **Per-step with history beats sliding windows.** Moving from a 10-step windowed CNN (2,605 params, F1=0.908) to a per-step MLP with N=5 ring buffer (4,865 params, F1=0.9548 ± 0.0054 multi-seed) keeps the recall gains while shrinking the input dimension and eliminating two train/inference mismatches present in earlier variants. The ring buffer exposes the repetition signal directly rather than aggregating it away.
 
 2. **Stuck loop analysis.** 65% of observed stuck runs are single-step (the agent repeats one command). N=5 history covers 85.4% of multi-step stuck loops, making it the optimal depth without adding noisy padding for rare deep loops.
 
-3. **Score feedback was a wash, but unsafe.** An earlier 53-dim variant fed the model's own previous 5 scores back as input. Training filled those slots with ground-truth labels (teacher forcing); inference would fill them with continuous sigmoid output — values the model never saw during training. The 53-dim variant scored 0.9614 F1 in eval (very slightly higher than the 48-dim's 0.9610), but that eval also used teacher forcing, so it overstates real-world inference performance. Dropping the score history removes the train/inference mismatch entirely and matches eval to inference by construction. The model relies entirely on per-step features (especially `output_similarity`) for the repetition signal.
+3. **Two train/inference mismatches removed via ablation.** The earliest v5 variant had 53-dim input: 8 features × 6 slots + 5 score feedback dims. Both groups were dropped via multi-seed ablation:
+   - **Score feedback (5 dims)**: training filled those with ground-truth labels (teacher forcing); inference would have filled them with continuous sigmoid output the model never saw during training. F1 unchanged within noise.
+   - **`step_index_norm` (1 feature × 6 slots)**: training used `step / (total_steps - 1)`; inference can't compute that (no `total_steps`) and approximated as `min(step / 100, 1.0)`. F1 unchanged within noise.
+
+   Final production model: 7 features × 6 slots = 42-dim input, 4,865 params, F1 = 0.9548 ± 0.0054. The remaining 6 features all contribute marginally; no single-feature drop is statistically distinguishable from baseline, but none has a known mismatch problem either, so they all stayed.
 
 4. **CRC32 identity is learnable.** Hash values aren't meaningful as magnitudes, but when the same command appears in consecutive history slots, the MLP sees near-zero differences between those positions — a learnable equality signal without explicit equality features.
 
 5. **Every STUCK label is LLM-verified.** Sonnet labels parse failures as UNSURE; those escalate to Opus. PRODUCTIVE and STUCK labels are never assigned by heuristic alone.
+
+6. **Multi-seed reporting matters.** The first feature-ablation pass used a single seed (42) and showed every removal hurting F1 by ~0.003-0.004 — looked like every feature was contributing. A 5-seed re-run revealed the cross-seed std (~0.005) was *larger* than every single-feature delta — the single-seed signal was noise. This is exactly the seed-hacking failure mode the multi-seed pattern catches.
 
 ## Related Work
 
@@ -241,8 +253,8 @@ This work combines: proxy-based interception, tool-call behavioral features, a t
 
 ## Next Steps
 
-1. Run a held-out benchmark to validate v5 generalization on out-of-distribution code (expected: similar improvement over v4 benchmark F1=0.714)
-2. Feature ablation study on the 8 features — `step_index_norm` (train/inference mismatch) and `has_prior_output` are the first candidates for removal
+1. Build the OOD benchmark harness (Docker-per-task, 12 tasks, dual-mode auth) to validate v5 generalization on real-world code
+2. A/B the nudge strategy on the benchmark: current (silent absorb at 1, soft/medium/hard with cooldowns 1,4,8,8) vs. long-loop focused (raise the silent buffer to ~5 turns, skip soft level)
 3. Collect more sessions with extended thinking blocks — DataClaw (26 sessions) is the only current source
 
 ## License

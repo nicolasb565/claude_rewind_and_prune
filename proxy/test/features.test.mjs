@@ -126,27 +126,27 @@ describe('cmdSemanticKey', () => {
 })
 
 describe('computeFeatures', () => {
-  test('returns Float32Array of length 8', () => {
-    const feats = computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: '' }, new Map(), 0)
+  test('returns Float32Array of length 7', () => {
+    const feats = computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: '' }, new Map())
     assert.ok(feats instanceof Float32Array)
-    assert.equal(feats.length, 8)
+    assert.equal(feats.length, 7)
   })
 
   test('tool_idx [0] matches TOOL_TO_IDX for each tool', () => {
     for (const [tool, idx] of Object.entries(TOOL_TO_IDX)) {
-      const feats = computeFeatures({ tool, cmd: '', file: null, output: '' }, new Map(), 0)
+      const feats = computeFeatures({ tool, cmd: '', file: null, output: '' }, new Map())
       assert.equal(feats[0], idx, `tool=${tool}`)
     }
   })
 
   test('output_length [5] is 0 for empty output', () => {
-    const feats = computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: '' }, new Map(), 0)
+    const feats = computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: '' }, new Map())
     assert.equal(feats[5], 0)
   })
 
   test('output_length [5] is log1p(newline_count)', () => {
     const output = 'a\nb\nc' // 2 newlines
-    const feats = computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output }, new Map(), 0)
+    const feats = computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output }, new Map())
     assert.ok(Math.abs(feats[5] - Math.log1p(2)) < 1e-6)
   })
 
@@ -154,7 +154,6 @@ describe('computeFeatures', () => {
     const feats = computeFeatures(
       { tool: 'bash', cmd: 'ls', file: null, output: 'Error: file not found' },
       new Map(),
-      0,
     )
     assert.equal(feats[6], 1.0)
   })
@@ -163,70 +162,45 @@ describe('computeFeatures', () => {
     const feats = computeFeatures(
       { tool: 'bash', cmd: 'ls', file: null, output: 'hello world' },
       new Map(),
-      0,
     )
     assert.equal(feats[6], 0.0)
   })
 
-  test('step_index_norm [7] is stepIdx/100 for small indices', () => {
-    const feats = computeFeatures({ tool: 'bash', cmd: '', file: null, output: '' }, new Map(), 10)
-    assert.ok(Math.abs(feats[7] - 0.1) < 1e-6)
-  })
-
-  test('step_index_norm [7] caps at 1.0 beyond 100', () => {
-    const feats = computeFeatures({ tool: 'bash', cmd: '', file: null, output: '' }, new Map(), 200)
-    assert.equal(feats[7], 1.0)
-  })
-
   test('has_prior_output [4] is 0 on first call', () => {
-    const feats = computeFeatures(
-      { tool: 'bash', cmd: 'ls', file: null, output: 'hi' },
-      new Map(),
-      0,
-    )
+    const feats = computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: 'hi' }, new Map())
     assert.equal(feats[4], 0.0)
   })
 
   test('has_prior_output [4] is 1 after same command run again', () => {
     const history = new Map()
-    computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: 'hi' }, history, 0)
-    const feats2 = computeFeatures(
-      { tool: 'bash', cmd: 'ls', file: null, output: 'hi' },
-      history,
-      1,
-    )
+    computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: 'hi' }, history)
+    const feats2 = computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: 'hi' }, history)
     assert.equal(feats2[4], 1.0)
   })
 
   test('output_similarity [3] is 1.0 for identical output repeated', () => {
     const history = new Map()
-    computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: 'foo\nbar' }, history, 0)
+    computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: 'foo\nbar' }, history)
     const feats2 = computeFeatures(
       { tool: 'bash', cmd: 'ls', file: null, output: 'foo\nbar' },
       history,
-      1,
     )
     assert.equal(feats2[3], 1.0)
   })
 
   test('output_similarity [3] is 0.0 for completely different output', () => {
     const history = new Map()
-    computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: 'foo' }, history, 0)
-    const feats2 = computeFeatures(
-      { tool: 'bash', cmd: 'ls', file: null, output: 'bar' },
-      history,
-      1,
-    )
+    computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: 'foo' }, history)
+    const feats2 = computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: 'bar' }, history)
     assert.equal(feats2[3], 0.0)
   })
 
   test('edit tool has output_similarity=0 and has_prior=0 even after repeat', () => {
     const history = new Map()
-    computeFeatures({ tool: 'edit', cmd: 'foo.py', file: 'foo.py', output: 'ok' }, history, 0)
+    computeFeatures({ tool: 'edit', cmd: 'foo.py', file: 'foo.py', output: 'ok' }, history)
     const feats2 = computeFeatures(
       { tool: 'edit', cmd: 'foo.py', file: 'foo.py', output: 'ok' },
       history,
-      1,
     )
     assert.equal(feats2[3], 0.0) // output_similarity
     assert.equal(feats2[4], 0.0) // has_prior_output
@@ -236,7 +210,6 @@ describe('computeFeatures', () => {
     const feats = computeFeatures(
       { tool: 'bash', cmd: 'ls -la', file: null, output: '' },
       new Map(),
-      0,
     )
     assert.ok(feats[1] >= 0 && feats[1] < 1)
   })
@@ -245,13 +218,12 @@ describe('computeFeatures', () => {
     const feats = computeFeatures(
       { tool: 'view', cmd: '', file: 'src/main.py', output: '' },
       new Map(),
-      0,
     )
     assert.ok(feats[2] >= 0 && feats[2] < 1)
   })
 
   test('file_hash [2] is 0 for null file', () => {
-    const feats = computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: '' }, new Map(), 0)
+    const feats = computeFeatures({ tool: 'bash', cmd: 'ls', file: null, output: '' }, new Map())
     assert.equal(feats[2], 0.0)
   })
 
@@ -259,12 +231,10 @@ describe('computeFeatures', () => {
     const feats1 = computeFeatures(
       { tool: 'bash', cmd: 'make test', file: null, output: '' },
       new Map(),
-      0,
     )
     const feats2 = computeFeatures(
       { tool: 'bash', cmd: 'make test', file: null, output: '' },
       new Map(),
-      0,
     )
     assert.equal(feats1[1], feats2[1])
   })

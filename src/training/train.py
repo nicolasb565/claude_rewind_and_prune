@@ -20,7 +20,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
-SEED = 42
+DEFAULT_SEED = 42
 MODEL_DIR = "proxy"
 
 N_HISTORY = 5
@@ -76,6 +76,7 @@ class StepDataset(Dataset):
 def build_sequences(
     rows_by_session: dict[str, list[dict]],
     use_score_history: bool = True,
+    excluded_features: set[str] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """Build (input, label) pairs for all steps with ring-buffer history.
 
@@ -89,11 +90,22 @@ def build_sequences(
     sigmoid output) — set use_score_history=False to drop those 5 dims entirely
     and produce a 48-dim input that is identical at train and inference time.
 
+    excluded_features removes the named features (must be in STEP_FEATURES) from
+    both the current step and every history slot — used for ablation studies.
+
     Returns:
-        inputs: float32 array of shape (n_steps, INPUT_DIM or INPUT_DIM_NO_SCORES)
+        inputs: float32 array of shape (n_steps, kept_features * (1+N_HISTORY) [+ N_HISTORY])
         labels: float32 array of shape (n_steps,)
         session_ids: list of session_id strings, one per step
     """
+    excluded = excluded_features or set()
+    unknown = excluded - set(STEP_FEATURES)
+    if unknown:
+        raise ValueError(f"Unknown features in excluded_features: {sorted(unknown)}")
+
+    kept_features = [f for f in STEP_FEATURES if f not in excluded]
+    n_kept = len(kept_features)
+
     all_inputs: list[np.ndarray] = []
     all_labels: list[float] = []
     all_session_ids: list[str] = []
@@ -101,17 +113,15 @@ def build_sequences(
     for sid in sorted(rows_by_session.keys()):
         rows = sorted(rows_by_session[sid], key=lambda r: r["step"])
 
-        feat_buf = np.zeros((N_HISTORY, NUM_FEATURES), dtype=np.float32)
+        feat_buf = np.zeros((N_HISTORY, n_kept), dtype=np.float32)
         score_buf = np.zeros(N_HISTORY, dtype=np.float32)
 
         for row in rows:
-            curr = np.array([float(row[f]) for f in STEP_FEATURES], dtype=np.float32)
+            curr = np.array([float(row[f]) for f in kept_features], dtype=np.float32)
 
             if use_score_history:
-                # [current(8), prev_T-1(8), ..., prev_T-5(8), score_T-1, ..., score_T-5]
                 inp = np.concatenate([curr, feat_buf.flatten(), score_buf])
             else:
-                # [current(8), prev_T-1(8), ..., prev_T-5(8)] — 48 dims, no scores
                 inp = np.concatenate([curr, feat_buf.flatten()])
             all_inputs.append(inp)
             all_labels.append(float(row["label"]))
@@ -151,6 +161,7 @@ def load_rows_from_jsonl(path: str) -> list[dict]:
 def session_split(
     rows: list[dict],
     test_fraction: float = 0.1,
+    seed: int = DEFAULT_SEED,
 ) -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
     """Split rows by session_id (90/10 split).
 
@@ -162,7 +173,7 @@ def session_split(
         rows_by_session[r["session_id"]].append(r)
 
     session_ids = sorted(rows_by_session.keys())
-    rng = random.Random(SEED)
+    rng = random.Random(seed)
     rng.shuffle(session_ids)
 
     n_test = max(1, int(len(session_ids) * test_fraction))
@@ -202,15 +213,23 @@ def metrics_at(
 def train(  # pylint: disable=too-many-statements,too-many-locals,too-many-branches
     manifest_path: str = "training_manifest.json",
     use_score_history: bool = True,
+    excluded_features: set[str] | None = None,
     output_dir: str = MODEL_DIR,
+    seed: int = DEFAULT_SEED,
 ) -> None:
-    random.seed(SEED)
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
-    input_dim = INPUT_DIM if use_score_history else INPUT_DIM_NO_SCORES
+    excluded = excluded_features or set()
+    n_kept = NUM_FEATURES - len(excluded)
+    feat_block = n_kept * (1 + N_HISTORY)
+    input_dim = feat_block + (N_HISTORY if use_score_history else 0)
+
     print(
-        f"\nVariant: {'with score history (53-dim)' if use_score_history else 'NO score history (48-dim)'}"
+        f"\nVariant: {'with score history' if use_score_history else 'NO score history'} "
+        f"({input_dim}-dim, {n_kept} features"
+        f"{', excluded: ' + ','.join(sorted(excluded)) if excluded else ''})"
     )
     print(f"Output directory: {output_dir}")
 
@@ -236,13 +255,17 @@ def train(  # pylint: disable=too-many-statements,too-many-locals,too-many-branc
         print("ERROR: no data loaded", file=sys.stderr)
         sys.exit(1)
 
-    train_by_session, test_by_session = session_split(all_rows)
+    train_by_session, test_by_session = session_split(all_rows, seed=seed)
 
     train_inputs, train_labels, _ = build_sequences(
-        train_by_session, use_score_history=use_score_history
+        train_by_session,
+        use_score_history=use_score_history,
+        excluded_features=excluded,
     )
     test_inputs, test_labels, _ = build_sequences(
-        test_by_session, use_score_history=use_score_history
+        test_by_session,
+        use_score_history=use_score_history,
+        excluded_features=excluded,
     )
 
     # Shuffle training sequences (across sessions — ring buffer already baked in)
@@ -398,16 +421,18 @@ def train(  # pylint: disable=too-many-statements,too-many-locals,too-many-branc
     with open(os.path.join(output_dir, "stuck_weights.json"), "w", encoding="utf-8") as f:
         json.dump(weights, f)
 
+    kept_features = [f for f in STEP_FEATURES if f not in excluded]
     config = {
         "threshold": threshold,
         "model_stage": 5,
         "n_history": N_HISTORY,
-        "num_features": NUM_FEATURES,
+        "num_features": n_kept,
         "input_dim": input_dim,
         "use_score_history": use_score_history,
+        "excluded_features": sorted(excluded),
         "total_params": total_params,
         "metrics": final_metrics,
-        "step_features": STEP_FEATURES,
+        "step_features": kept_features,
     }
     with open(os.path.join(output_dir, "stuck_config.json"), "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
@@ -430,21 +455,51 @@ if __name__ == "__main__":
         help="Drop the 5 score history dims (input becomes 48-dim, no train/inference mismatch)",
     )
     parser.add_argument(
+        "--exclude-feature",
+        action="append",
+        default=[],
+        choices=STEP_FEATURES,
+        metavar="NAME",
+        help="Drop a feature from the input (repeatable). Used for ablation studies.",
+    )
+    parser.add_argument(
+        "--variant-name",
+        default=None,
+        help="Subdirectory name under proxy/experiments/ablation/ for outputs. "
+        "Auto-generated from --exclude-feature when not set.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=DEFAULT_SEED,
+        help="Random seed for split, init, and shuffling (default: 42)",
+    )
+    parser.add_argument(
         "--output-dir",
         default=None,
-        help="Where to write checkpoint/weights/config (default: proxy/, "
-        "or proxy/experiments/no_score_history/ when --no-score-history is set)",
+        help="Where to write checkpoint/weights/config. Overrides --variant-name. "
+        "Defaults to proxy/, or an experiments subdir when --no-score-history or "
+        "--exclude-feature are set.",
     )
     _args = parser.parse_args()
+    excluded_set = set(_args.exclude_feature)
+
     out = _args.output_dir
     if out is None:
-        out = (
-            os.path.join(MODEL_DIR, "experiments", "no_score_history")
-            if _args.no_score_history
-            else MODEL_DIR
-        )
+        if excluded_set:
+            variant = _args.variant_name or "no_" + "_".join(
+                sorted(f.replace("_", "") for f in excluded_set)
+            )
+            out = os.path.join(MODEL_DIR, "experiments", "ablation", variant)
+        elif _args.no_score_history:
+            out = os.path.join(MODEL_DIR, "experiments", "no_score_history")
+        else:
+            out = MODEL_DIR
+
     train(
         _args.manifest,
         use_score_history=not _args.no_score_history,
+        excluded_features=excluded_set,
         output_dir=out,
+        seed=_args.seed,
     )

@@ -25,7 +25,7 @@ describe('SessionDetector', () => {
     assert.equal(det._stepCount, 2)
   })
 
-  test('MLP receives input vector of length 48', () => {
+  test('MLP receives input vector of length 42', () => {
     let capturedLen = 0
     const capturingMLP = {
       forward: (input) => {
@@ -34,15 +34,15 @@ describe('SessionDetector', () => {
       },
     }
     new SessionDetector(capturingMLP).addStep('Bash', { command: 'ls' }, 'out')
-    assert.equal(capturedLen, 48)
+    assert.equal(capturedLen, 42)
   })
 
   test('features from step N appear in T-1 slot for step N+1', () => {
     const captured = []
     const trackingMLP = {
       forward: (input) => {
-        // T-1 history slot is positions [8..16) — the previous step's features
-        captured.push(Array.from(input.slice(8, 16)))
+        // T-1 history slot is positions [7..14) — the previous step's 7 features
+        captured.push(Array.from(input.slice(7, 14)))
         return 0.5
       },
     }
@@ -51,7 +51,7 @@ describe('SessionDetector', () => {
     det.addStep('Bash', { command: 'pwd' }, '')
 
     // First step: ring is zero-padded, T-1 slot is all zeros
-    assert.deepEqual(captured[0], new Array(8).fill(0))
+    assert.deepEqual(captured[0], new Array(7).fill(0))
     // Second step: T-1 slot must be non-zero (carries step-0 features)
     assert.ok(
       captured[1].some((v) => v !== 0),

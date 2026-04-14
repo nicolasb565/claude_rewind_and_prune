@@ -181,6 +181,39 @@ class TestBuildSequences:
             with_scores[:, :feat_only_dim], without_scores
         )
 
+    def test_excluded_features_reduce_input_dim(self):
+        """Excluding features drops them from current and history slots."""
+        rows = _make_rows(n_sessions=1, steps_per_session=3)
+        by_session = {"sess_000": rows}
+
+        excluded = {"step_index_norm", "has_prior_output"}
+        inputs, _, _ = build_sequences(
+            by_session,
+            use_score_history=False,
+            excluded_features=excluded,
+        )
+        kept_features = NUM_FEATURES - len(excluded)  # 6
+        expected_dim = kept_features * (1 + N_HISTORY)  # 36
+        assert inputs.shape == (3, expected_dim)
+
+    def test_excluded_features_preserves_kept_columns(self):
+        """Excluding features must not perturb the remaining feature columns."""
+        rows = _make_rows(n_sessions=1, steps_per_session=2)
+        by_session = {"sess_000": rows}
+
+        full, _, _ = build_sequences(by_session, use_score_history=False)
+        # Drop the last feature (step_index_norm at index 7)
+        partial, _, _ = build_sequences(
+            by_session,
+            use_score_history=False,
+            excluded_features={"step_index_norm"},
+        )
+
+        # Step 0 first 7 features must match step 0 first 7 of full
+        np.testing.assert_array_equal(full[0, :7], partial[0, :7])
+        # And the partial input should not include the dropped 8th column
+        assert partial.shape[1] == 7 * (1 + N_HISTORY)  # 42
+
 
 class TestBuildSequencesRingBuffer:
     def test_t3_slot_holds_step0_features(self):

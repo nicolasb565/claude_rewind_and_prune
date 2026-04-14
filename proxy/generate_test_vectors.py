@@ -19,7 +19,7 @@ import numpy as np
 WEIGHTS_PATH = os.path.join(os.path.dirname(__file__), "stuck_weights.json")
 OUT_PATH = os.path.join(os.path.dirname(__file__), "test", "mlp_parity_vectors.json")
 
-INPUT_DIM = 48  # no score history — every dim is a feature
+INPUT_DIM = 42  # no score history, no step_index_norm — every dim is a feature
 N_VECTORS = 100
 SEED = 42
 

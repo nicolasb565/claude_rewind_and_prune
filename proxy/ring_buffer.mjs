@@ -13,7 +13,7 @@
  */
 
 export const N_HISTORY = 5
-export const NUM_FEATURES = 8
+export const NUM_FEATURES = 7
 
 export class RingBuffer {
   /**

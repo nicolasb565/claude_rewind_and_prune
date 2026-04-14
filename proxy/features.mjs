@@ -5,9 +5,11 @@
  * owned by the caller (SessionDetector). This makes each function independently
  * testable without needing a full session object.
  *
- * Feature order matches src/training/train.py STEP_FEATURES:
+ * Feature order matches src/training/train.py STEP_FEATURES (with step_index_norm
+ * dropped — it was a known train/inference mismatch and ablation showed no
+ * statistically significant cost to removing it):
  *   [tool_idx, cmd_hash, file_hash, output_similarity, has_prior_output,
- *    output_length, is_error, step_index_norm]
+ *    output_length, is_error]
  */
 
 import { crc32 } from 'node:zlib'
@@ -156,10 +158,9 @@ export function jaccard(setA, setB) {
  *
  * @param {{ tool: string, cmd: string, file: string|null, output: string }} step
  * @param {Map<number, Set>} outputHistory  keyed by cmdHashInt, mutated in-place
- * @param {number} stepIdx  zero-based running step index (for step_index_norm)
- * @returns {Float32Array}  length-8 feature vector
+ * @returns {Float32Array}  length-7 feature vector
  */
-export function computeFeatures(step, outputHistory, stepIdx) {
+export function computeFeatures(step, outputHistory) {
   const { tool, cmd, file, output } = step
   const toolIdx = TOOL_TO_IDX[tool] ?? TOOL_TO_IDX['other']
 
@@ -175,10 +176,7 @@ export function computeFeatures(step, outputHistory, stepIdx) {
   const hasPrior = !isEditTool && outputHistory.has(cmdHashInt)
   const outputSim = isEditTool ? 0.0 : jaccard(outputSet, outputHistory.get(cmdHashInt) ?? null)
 
-  // step_index_norm: known train/inference mismatch — training uses total session
-  // length (unknown at inference time); proxy uses running index / 100 capped at 1.
-  // Ablation candidate for removal.
-  const features = new Float32Array(8)
+  const features = new Float32Array(7)
   features[0] = toolIdx
   features[1] = cmdHashInt !== null ? cmdHashInt * CRC32_NORM : 0.0
   features[2] = fileHashInt !== null ? fileHashInt * CRC32_NORM : 0.0
@@ -186,7 +184,6 @@ export function computeFeatures(step, outputHistory, stepIdx) {
   features[4] = hasPrior ? 1.0 : 0.0
   features[5] = Math.log1p(cleanOutput ? cleanOutput.split('\n').length - 1 : 0)
   features[6] = cleanOutput && ERROR_RE.test(cleanOutput.slice(0, 2000)) ? 1.0 : 0.0
-  features[7] = Math.min(stepIdx / 100, 1.0)
 
   if (cmdHashInt !== null && !isEditTool) {
     outputHistory.set(cmdHashInt, outputSet)

@@ -34,7 +34,7 @@ export class SessionDetector {
    */
   addStep(toolName, input, output) {
     const step = parseToolCall(toolName, input, output)
-    const features = computeFeatures(step, this._outputHistory, this._stepCount)
+    const features = computeFeatures(step, this._outputHistory)
     const inputVec = this._ring.buildInput(features)
     const score = this._mlp.forward(inputVec)
     this._ring.push(features)

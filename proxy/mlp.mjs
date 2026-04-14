@@ -1,17 +1,17 @@
 /**
- * v5 per-step MLP inference (no score history).
+ * v5 per-step MLP inference (no score history, no step_index_norm).
  *
- * Architecture: Linear(48,64) → ReLU → Linear(64,32) → ReLU → Linear(32,1) → Sigmoid
- * Normalization: mean/std applied to all 48 dims (every input is a feature).
+ * Architecture: Linear(42,64) → ReLU → Linear(64,32) → ReLU → Linear(32,1) → Sigmoid
+ * Normalization: mean/std applied to all 42 dims (every input is a feature).
  *
- * History: an earlier variant included 5 previous-score feedback dims for a
- * 53-dim input, but ablation showed identical F1 (0.961) without them and the
- * train/inference mismatch they introduced is gone in this simpler model.
+ * History: removed score feedback (5 dims) and step_index_norm (1 dim × 6 slots).
+ * Both were either weak signal or had train/inference mismatches; multi-seed
+ * ablation showed no statistically significant cost to dropping them.
  */
 
 import { readFileSync } from 'node:fs'
 
-const INPUT_DIM = 48
+const INPUT_DIM = 42
 
 /**
  * Load an MLP instance from a JSON weights file.

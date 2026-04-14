@@ -2,18 +2,21 @@
   "threshold": 0.5,
   "model_stage": 5,
   "n_history": 5,
-  "num_features": 8,
-  "input_dim": 48,
+  "num_features": 7,
+  "input_dim": 42,
   "use_score_history": false,
-  "total_params": 5249,
+  "excluded_features": [
+    "step_index_norm"
+  ],
+  "total_params": 4865,
   "metrics": {
-    "precision": 0.9737355545550053,
-    "recall": 0.9486073543387674,
-    "f1": 0.9610072208850213,
-    "tp": 12976,
-    "fp": 350,
-    "fn": 703,
-    "tn": 17766,
+    "precision": 0.9692549371633752,
+    "recall": 0.9472183639154909,
+    "f1": 0.9581099567419675,
+    "tp": 12957,
+    "fp": 411,
+    "fn": 722,
+    "tn": 17705,
     "threshold": 0.5
   },
   "step_features": [
@@ -23,7 +26,6 @@
     "output_similarity",
     "has_prior_output",
     "output_length",
-    "is_error",
-    "step_index_norm"
+    "is_error"
   ]
 }
