@@ -80,6 +80,10 @@ function getSession(key) {
 
 function pruneIfStuck(messages) {
   const key = getSessionKey(messages)
+  // Short, stable digest of the session key for log attribution.
+  // Full 200-char key is too noisy to read; first 64 chars is enough to
+  // uniquely identify a benchmark task and match it to tasks/<id>/task.md.
+  const sessionKeyPrefix = key.slice(0, 64)
   const session = getSession(key)
   session.turnCounter++
 
@@ -103,6 +107,7 @@ function pruneIfStuck(messages) {
   }
 
   log('mlp_score', {
+    sessionKeyPrefix,
     turn: session.turnCounter,
     score: +lastScore.toFixed(4),
     threshold,
@@ -115,8 +120,9 @@ function pruneIfStuck(messages) {
   if (!fire) return messages
 
   log('nudge_injected', {
+    sessionKeyPrefix,
     turn: session.turnCounter,
-    score: lastScore,
+    score: +lastScore.toFixed(4),
     nudgeLevel: level,
     recentTools: recentTools.slice(-5),
   })
