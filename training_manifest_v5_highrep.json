@@ -1,0 +1,26 @@
+{
+  "schema_version": 5,
+  "_note": "Schema 5 + 200x oversample of existing high-file_repeat stuck rows",
+  "datasets": [
+    {
+      "path": "data/generated/nlile_v5.jsonl",
+      "weight": 1.0
+    },
+    {
+      "path": "data/generated/dataclaw_claude_v5.jsonl",
+      "weight": 1.0
+    },
+    {
+      "path": "data/generated/masterclass_v5.jsonl",
+      "weight": 1.0
+    },
+    {
+      "path": "data/generated/claudeset_v5.jsonl",
+      "weight": 1.0
+    },
+    {
+      "path": "data/generated/highfilerep_stuck_oversample_v5.jsonl",
+      "weight": 1.0
+    }
+  ]
+}

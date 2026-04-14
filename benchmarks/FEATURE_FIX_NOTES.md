@@ -699,3 +699,129 @@ the OOD benchmark?" — needs a real on-run with v6_pw3 weights mounted
 on the production proxy. ~$20 of API spend for a definitive answer
 on whether Phase 1 + Phase 2 measurably improve agent performance.
 
+---
+
+## Bonus #2: v8_highrep — targeted oversampling of rare positive examples
+
+Last experiment of the night. Driven by the training-data analysis
+showing that **only 1737 of 305,948 training rows are labeled STUCK
+AND have file_repeat_count_norm ≥ 0.5** — that's 0.6% of rows.
+The model has barely seen the pattern we want it to learn.
+
+Tried a clean oversampling: take just those 1737 existing rare-gem
+rows and oversample them 200× in the training data (no relabeling,
+no synthesis — just amplifying the rare positive signal that's
+already there).
+
+### Eval results (best of all variants tried)
+
+Pooled on all 10 benchmark tasks (n=680 labeled steps):
+
+| model | AUC | P | R | F1 | TP | FP | LLVM caught |
+|---|---|---|---|---|---|---|---|
+| v5_baseline | 0.5514 | 0.078 | 0.070 | 0.074 | 4 | 47 | 1/39 |
+| v6_pw3 | 0.6309 | 0.169 | 0.263 | 0.205 | 15 | 74 | 7/39 |
+| **v8_highrep** | **0.6613** | **0.350** | 0.246 | **0.289** | 14 | **26** | **13/39** |
+
+**v8_highrep is the new best model on every metric except recall:**
+- Highest pooled AUC (0.6613, +0.030 over v6_pw3, +0.110 over v5)
+- 2× the precision of v6_pw3 (0.350 vs 0.169)
+- F1 0.289 (40% better than v6_pw3's 0.205)
+- 1/3 the false positives (26 vs 74)
+- **13× more LLVM stuck steps caught than baseline** (13 of 39 vs 1)
+- LLVM max score: 1.000 (model is now fully confident on at least
+  one LLVM stuck step, vs v6_pw3's 0.892)
+
+**The training-data lesson:** rare-but-correctly-labeled positive
+examples can be unlocked by oversampling without any new data
+collection. The 1737 high-file_repeat-stuck rows existed all along
+in the training corpus — the standard training run just averaged
+them out against 304k other rows. Targeted oversampling makes their
+signal load-bearing.
+
+### The precision/recall paradox — v8 doesn't fire more in production
+
+Despite being a better classifier, **v8_highrep fires fewer nudges
+under the simulator** than v6_pw3. Across all 10 benchmark
+transcripts:
+
+| classifier | nudge config | total fires |
+|---|---|---|
+| v5_baseline | default | 0 |
+| v6_pw3 | cd=[0,2,4,4] | **6** |
+| v8_highrep | default | 0 |
+| v8_highrep | cd=[0,2,4,4] | 1 |
+| v8_highrep | cd=[0,2,4,4] reset_factor=0.2 | 1 |
+| v8_highrep | t=0.3 cd=[0,2,4,4] | 1 |
+
+I tried everything: lower threshold, lower reset_factor, tighter
+cooldowns. v8 still fires 1 nudge total because **its score
+distribution is too sharp**. Stuck steps spike to 1.000 then drop
+fast to 0.0; the reset-on-drop logic resets the level between
+spikes; the next spike gets silent-absorbed; repeat.
+
+In contrast, v6_pw3 has noisier mid-range scores that stay above the
+reset threshold long enough for the cooldown machinery to fire.
+
+**This is a real architectural finding**: the current nudge
+controller (reset-on-drop + cooldown + silent absorb) is optimized
+for noisy classifiers. Sharp-score-distribution classifiers fall
+through its fingers. To use v8_highrep effectively in production,
+the nudge controller would need to be redesigned around a
+**sliding-window stuck rate** ("did N of the last M steps cross
+threshold?") instead of the current reset-based logic.
+
+That's a phase-3 design change worth doing, because v8_highrep's raw
+classification quality is meaningfully better.
+
+### Updated final recommendation
+
+Two production-ready options:
+
+**Option A: v6_pw3 + cd=[0,2,4,4]** (current best deployable)
+- 6 nudges fire on the OOD benchmark, all on stuck-prone tasks
+- 0 false positives on productive controls
+- Works with the existing nudge controller unchanged
+- Ship today.
+
+**Option B: v8_highrep + redesigned nudge controller** (best ceiling)
+- 13 of 39 LLVM stuck steps catchable in raw eval (vs 7 in v6_pw3)
+- 0.350 precision, 0.289 F1 (best in class)
+- Requires phase-3 work: replace reset-on-drop with sliding-window
+  stuck-rate logic in nudge.mjs
+- The classifier is ahead of the controller, not the other way around.
+
+**Both options need a real benchmark on-run** to confirm the
+simulated nudge counts translate into measurable agent improvement
+on wall time, tokens, and success rate. That's the phase-3
+$20-API-spend experiment.
+
+### v8_highrep reproduction
+
+```bash
+# Build the high-file_repeat oversample (uses existing labeled data,
+# no relabeling, no Sonnet API spend)
+.venv/bin/python - <<'PY'
+import json
+gems = []
+for p in ["data/generated/nlile_v5.jsonl",
+          "data/generated/dataclaw_claude_v5.jsonl",
+          "data/generated/masterclass_v5.jsonl",
+          "data/generated/claudeset_v5.jsonl"]:
+    for line in open(p):
+        d = json.loads(line)
+        if d["label"] >= 0.9 and d["file_repeat_count_norm"] >= 0.5:
+            gems.append(d)
+with open("data/generated/highfilerep_stuck_oversample_v5.jsonl", "w") as f:
+    for r in gems * 200:
+        f.write(json.dumps(r) + "\n")
+print(f"Found {len(gems)} rare gems, oversampled to {len(gems)*200} rows")
+PY
+
+# Train v8_highrep (uses training_manifest_v5_highrep.json)
+.venv/bin/python src/training/train.py \
+  --manifest training_manifest_v5_highrep.json \
+  --no-score-history --exclude-feature step_index_norm \
+  --output-dir proxy/experiments/v8_highrep
+```
+
