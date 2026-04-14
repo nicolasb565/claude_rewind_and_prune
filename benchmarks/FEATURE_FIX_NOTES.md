@@ -603,3 +603,99 @@ to spend Sonnet labeling tokens on new sessions.
   Trained checkpoints not committed (gitignored) but reproducible from
   the documented commands.
 
+---
+
+## Bonus experiment: v7_aug — training-set augmentation with benchmark labels
+
+Tested whether adding a small amount of OOD-labeled data (7 of the 10
+benchmark transcripts, with their Sonnet labels, oversampled 50× to
+match the nlile contribution weight) would help the model learn the
+LLVM-style patterns. Held out 3 tasks (`01_gcc_sccvn`,
+`02_gcc_mul_overflow`, `06_django_async`) for an honest test.
+
+**Why I tried this:** the training data distribution analysis showed
+only **0.14% of training rows have file_repeat_count_norm ≥ 0.9**,
+and those rows are 14.5% stuck — *lower* than the 41.8% global stuck
+rate. The model was learning that high file_repeat is mildly
+ANTI-correlated with stuck because the existing data shows that. To
+unlock the LLVM signal, the model needs training data where high
+file_repeat correlates with stuck.
+
+### Results
+
+Pooled eval on the 3 held-out tasks:
+
+| model | AUC | TP/total | FPs |
+|---|---|---|---|
+| v5_baseline | 0.5785 | 1/3 | 10 |
+| v6_pw3 | **0.6513** | 0/3 | 16 |
+| **v7_aug** | **0.6513** | 0/3 | **4** |
+| v7_aug_pw3 | 0.2337 | 0/3 | 13 |
+| v7_aug_pw5 | 0.4943 | 0/3 | 26 |
+
+**v7_aug matches v6_pw3's AUC but quarters the false positive count**
+(4 vs 16) on the held-out OOD set. The augmentation didn't unlock new
+recall (the 3 stuck steps in held-out are too few to measure
+reliably), but it did dramatically improve calibration — score
+distribution for productive examples got pushed down (max score on
+02_gcc went from v5's 0.997 → v6_pw3's 0.995 → v7_aug's 0.669).
+
+**v7_aug + pos_weight reweighting catastrophically overfits.** With
+pw3 the heldout AUC drops to 0.23 — *worse than random*. Mixing the
+two interventions (oversample+weight) breaks generalization because
+the small augmentation set gets memorized as the dominant signal.
+**Don't combine them.**
+
+### What v7_aug means in production
+
+Tested `v7_aug` under the simulator with the cd=[0,2,4,4] cooldown
+trick that worked for v6_pw3:
+
+| config | total fires | LLVM fires | 33_geo fires | other 8 tasks |
+|---|---|---|---|---|
+| v5_baseline default | 0 | 0 | 0 | 0 |
+| v6_pw3 cd=[0,2,4,4] | **6** | 2 | 4 | 0 |
+| v7_aug default cd | 0 | 0 | 0 | 0 |
+| v7_aug cd=[0,2,4,4] | 1 | 0 | 1 | 0 |
+| v7_aug t=0.4 cd=[0,2,4,4] | 1 | 0 | 1 | 0 |
+
+**v7_aug is too conservative to translate into runtime nudges.** The
+augmentation made the score distribution so well-calibrated (no
+false positives) that it also doesn't fire on real stuck patterns
+under the standard threshold. Lowering the threshold to 0.4 didn't
+help. v7_aug is great for "don't be wrong" and bad for "actually
+intervene" — opposite of what the user wants from a nudge proxy.
+
+### v7_aug interpretation
+
+Augmentation is the right idea but needs more data and more diverse
+patterns. Adding 7 sessions × ~70 steps each is enough to recalibrate
+the productive distribution but not enough to teach new stuck
+patterns the model can fire on. To fix this properly:
+
+1. **Label more OOD sessions** (real Sonnet-labeling work, not
+   relabeling existing — costs API budget but is the right path)
+2. **Synthesize stuck patterns** programmatically — take productive
+   sessions and inject "thrashing windows" with high file_repeat.
+   Risk: synthesis might not match the real distribution.
+3. **Use targeted oversampling** of just the existing stuck examples
+   that have high file_repeat (there are only 62 such rows in
+   305k — very few to learn from).
+
+For tonight, the practical recommendation stands:
+
+## Final recommendation (revised)
+
+**Deployment recipe**: `v6_pw3` weights + nudge cooldowns
+`[0, 2, 4, 4]` + everything else from the current production proxy.
+
+This is the only combination that fires meaningfully (6 nudges on
+the OOD benchmark) without firing on any productive control task.
+Documented above. v7_aug is a research direction worth following but
+not a production candidate at this scale of OOD data.
+
+The phase-3 question — "do those 6 nudges actually help the agent on
+the OOD benchmark?" — needs a real on-run with v6_pw3 weights mounted
+on the production proxy. ~$20 of API spend for a definitive answer
+on whether Phase 1 + Phase 2 measurably improve agent performance.
+
