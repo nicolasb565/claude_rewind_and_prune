@@ -1,0 +1,26 @@
+{
+  "schema_version": 6,
+  "_note": "v9 highconsec oversampling \u2014 500 rare-gem rows \u00d7 200",
+  "datasets": [
+    {
+      "path": "data/generated/nlile_v6.jsonl",
+      "weight": 1.0
+    },
+    {
+      "path": "data/generated/dataclaw_claude_v6.jsonl",
+      "weight": 1.0
+    },
+    {
+      "path": "data/generated/masterclass_v6.jsonl",
+      "weight": 1.0
+    },
+    {
+      "path": "data/generated/claudeset_v6.jsonl",
+      "weight": 1.0
+    },
+    {
+      "path": "data/generated/v9_highconsec_oversample.jsonl",
+      "weight": 1.0
+    }
+  ]
+}

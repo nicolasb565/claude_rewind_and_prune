@@ -63,11 +63,17 @@ class TestComputeStepFeatures:
                     assert isinstance(feat[key], float), f"{key} should be float"
 
     def test_no_extra_fields(self):
+        """Schema 6: step feature dicts contain the legacy STEP_FEATURES
+        (8 fields) plus V9_FEATURE_NAMES (34 fields) = 42 total."""
+        from src.pipeline.extract_features import V9_FEATURE_NAMES
         steps = _make_steps(3)
         feats = compute_step_features(steps)
+        expected = set(STEP_FEATURES) | set(V9_FEATURE_NAMES)
         for feat in feats:
-            extra = set(feat.keys()) - set(STEP_FEATURES)
+            extra = set(feat.keys()) - expected
             assert not extra, f"Extra fields: {extra}"
+            missing = expected - set(feat.keys())
+            assert not missing, f"Missing fields: {missing}"
 
     def test_empty_steps_returns_empty(self):
         feats = compute_step_features([])
