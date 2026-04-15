@@ -72,6 +72,7 @@ export function parseToolCall(toolName, input, output) {
   const rawFile = input?.file_path ?? input?.path ?? null
   return {
     tool,
+    tool_name: toolName,
     cmd,
     file: rawFile !== null && rawFile !== undefined ? String(rawFile) : null,
     output: output ?? '',

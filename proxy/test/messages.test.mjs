@@ -78,7 +78,11 @@ describe('extractAllToolCalls', () => {
     assert.deepEqual(extractAllToolCalls(messages), [])
   })
 
-  test('preserves assistant-turn order across multiple tool calls', () => {
+  test('emits in tool_result order (matches Python parse_session)', () => {
+    // Python's src/pipeline/parsers/nlile.py:parse_session is single-pass
+    // and appends each step the moment its tool_result is encountered.
+    // The LR classifier was trained on Python-parsed features, so JS must
+    // emit in the same order or the rolling history features drift.
     const messages = [
       {
         role: 'assistant',
@@ -97,8 +101,8 @@ describe('extractAllToolCalls', () => {
     ]
     const calls = extractAllToolCalls(messages)
     assert.equal(calls.length, 2)
-    assert.equal(calls[0].toolName, 'Read') // assistant order, not result order
-    assert.equal(calls[1].toolName, 'Bash')
+    assert.equal(calls[0].toolName, 'Bash') // result order: t2 first
+    assert.equal(calls[1].toolName, 'Read')
   })
 
   test('multi-block tool_result output is joined with newlines', () => {

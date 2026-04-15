@@ -32,7 +32,9 @@
  *   - At most one nudge per step.
  */
 
-const DEFAULT_CONFIG = {
+import { NUDGE_TEMPLATES } from './nudge.mjs'
+
+export const DEFAULT_TIERED_CONFIG = {
   soft:   { kind: 'mean',   n: 2, threshold: 0.34  },
   medium: { kind: 'median', n: 4, threshold: 0.645 },
   hard:   { kind: 'median', n: 9, threshold: 0.605 },
@@ -70,7 +72,7 @@ export class TieredFilter {
    * @param {{soft: FilterSpec, medium: FilterSpec, hard: FilterSpec}} config
    *   where FilterSpec = { kind: 'mean'|'median', n: number, threshold: number }
    */
-  constructor(config = DEFAULT_CONFIG) {
+  constructor(config = DEFAULT_TIERED_CONFIG) {
     this._cfg = config
     this._soft = new RollingBuffer(config.soft.n)
     this._med = new RollingBuffer(config.medium.n)
@@ -124,37 +126,48 @@ export class TieredNudgeController {
 
   /**
    * Advance the state machine given a fresh filter reading.
-   * Returns `{ fire: boolean, level: number, prevLevel: number }`.
+   * Returns `{ fire, level, prevLevel, text }`:
    *   - fire=true means a nudge for this level should be sent THIS step
    *   - level is the (possibly updated) current level after the step
    *   - prevLevel is the level before the step — useful for logging resets
+   *   - text is the nudge message when fire=true, otherwise ''
    *
    * @param {{soft: boolean, medium: boolean, hard: boolean}} filters
+   * @param {number} score   last LR P(stuck) score, for inclusion in nudge text
+   * @param {number} turn    current turn counter for the session
+   * @param {string[]} recentTools  recent tool call summaries, joined into text
    */
-  update(filters) {
+  update(filters, score = 0, turn = 0, recentTools = []) {
     const prev = this._level
 
     // Recovery: soft filter collapse clears all state.
     if (!filters.soft) {
       this._level = -1
-      return { fire: false, level: this._level, prevLevel: prev }
+      return { fire: false, level: this._level, prevLevel: prev, text: '' }
     }
 
     // Try to advance exactly one level. Each advance requires the next
     // tier's filter to have independently agreed.
+    let fireLevel = -1
     if (this._level === -1) {
       this._level = 0
-      return { fire: true, level: 0, prevLevel: prev }
-    }
-    if (this._level === 0 && filters.medium) {
+      fireLevel = 0
+    } else if (this._level === 0 && filters.medium) {
       this._level = 1
-      return { fire: true, level: 1, prevLevel: prev }
-    }
-    if (this._level === 1 && filters.hard) {
+      fireLevel = 1
+    } else if (this._level === 1 && filters.hard) {
       this._level = 2
-      return { fire: true, level: 2, prevLevel: prev }
+      fireLevel = 2
     }
-    return { fire: false, level: this._level, prevLevel: prev }
+
+    if (fireLevel < 0) {
+      return { fire: false, level: this._level, prevLevel: prev, text: '' }
+    }
+
+    const pct = Math.round(score * 100)
+    const recentList = recentTools.join('\n  ')
+    const text = NUDGE_TEMPLATES[fireLevel](turn, pct, recentList)
+    return { fire: true, level: fireLevel, prevLevel: prev, text }
   }
 
   reset() {

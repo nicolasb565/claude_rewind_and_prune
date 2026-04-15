@@ -51,7 +51,7 @@ const HARD_NUDGE = (turn, pct, recentList) =>
   `3. What fundamentally different approach will you take next?\n\n` +
   `If you cannot answer these, state that clearly and ask for guidance.`
 
-const NUDGE_TEMPLATES = [SOFT_NUDGE, MEDIUM_NUDGE, HARD_NUDGE]
+export const NUDGE_TEMPLATES = [SOFT_NUDGE, MEDIUM_NUDGE, HARD_NUDGE]
 
 // Default cooldowns indexed by (nudgeLevel + 1): level -1→[0], 0→[1], 1→[2], 2→[3]
 const DEFAULT_COOLDOWNS = [1, 4, 8, 8]

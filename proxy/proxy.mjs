@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * v5 per-step MLP proxy for Claude Code.
+ * LR + three-tier filter proxy for Claude Code.
  *
- * Intercepts Anthropic API requests, scores each tool call through the stuck
- * detector, and injects a corrective nudge when the MLP score exceeds the
- * threshold. No modifications to Claude Code required.
+ * Intercepts Anthropic API requests, scores each tool call through the
+ * LR stuck detector + three-tier filter (soft/medium/hard), and injects a
+ * corrective nudge when the state machine advances a tier. No modifications
+ * to Claude Code required.
  *
  * Usage:
  *   node proxy/proxy.mjs &
@@ -21,9 +22,9 @@ import { createServer } from 'node:http'
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadMLP } from './mlp.mjs'
-import { SessionDetector } from './detector.mjs'
-import { NudgeController } from './nudge.mjs'
+import { loadLR } from './lr.mjs'
+import { LRSessionDetector } from './lr_detector.mjs'
+import { TieredNudgeController, DEFAULT_TIERED_CONFIG } from './tiered_filter.mjs'
 import {
   extractAllToolCalls,
   extractLastTurnToolCalls,
@@ -40,8 +41,7 @@ const UPSTREAM = process.env.PROXY_UPSTREAM || 'https://api.anthropic.com'
 const COMPACT_ENABLED = process.env.COMPACT_ENABLED === '1'
 const STUCK_ENABLED = process.env.STUCK_ENABLED !== '0'
 
-const mlp = loadMLP(resolve(__dirname, 'stuck_weights.json'))
-const { threshold } = JSON.parse(readFileSync(resolve(__dirname, 'stuck_config.json'), 'utf8'))
+const lr = loadLR(resolve(__dirname, 'lr_weights.json'))
 
 let compact = null
 if (COMPACT_ENABLED) {
@@ -54,8 +54,8 @@ log('proxy_start', {
   upstream: UPSTREAM,
   compactEnabled: COMPACT_ENABLED,
   stuckEnabled: STUCK_ENABLED,
-  classifier: 'mlp_v5',
-  threshold,
+  classifier: 'lr_content_v1',
+  filterTiers: DEFAULT_TIERED_CONFIG,
   ...getStats(),
 })
 
@@ -67,8 +67,8 @@ const sessions = new Map()
 function getSession(key) {
   if (!sessions.has(key)) {
     sessions.set(key, {
-      detector: new SessionDetector(mlp),
-      nudge: new NudgeController({ threshold }),
+      detector: new LRSessionDetector(lr),
+      nudge: new TieredNudgeController(),
       turnCounter: 0,
       initialized: false,
     })
@@ -93,29 +93,44 @@ function pruneIfStuck(messages) {
     : extractAllToolCalls(messages)
   session.initialized = true
 
-  let lastScore = 0
+  // Text-only turns produce no tool calls. Preserve detector + nudge state
+  // across them — a turn with no actions is neither stuck nor productive
+  // signal, just absence of evidence.
+  if (toolCalls.length === 0) return messages
+
+  let lastResult = null
   try {
     for (const tc of toolCalls) {
-      lastScore = session.detector.addStep(tc.toolName, tc.input, tc.output)
+      lastResult = session.detector.addStep(tc.toolName, tc.input, tc.output)
     }
   } catch (e) {
-    // Rebuild detector so partial ring state doesn't corrupt future calls;
-    // restore initialized so the full-scan path runs again next call
+    // Rebuild BOTH detector and nudge so partial state can't corrupt
+    // future calls. Restore `initialized` so the next call re-scans the
+    // full message history into the new detector.
     session.initialized = prevInitialized
-    session.detector = new SessionDetector(mlp)
+    session.detector = new LRSessionDetector(lr)
+    session.nudge = new TieredNudgeController()
     throw e
   }
 
-  log('mlp_score', {
+  const { score: lastScore, filters, aggregates } = lastResult
+
+  log('lr_score', {
     sessionKeyPrefix,
     turn: session.turnCounter,
     score: +lastScore.toFixed(4),
-    threshold,
-    stuck: lastScore >= threshold,
+    soft: filters.soft,
+    medium: filters.medium,
+    hard: filters.hard,
+    mean2: aggregates.soft != null ? +aggregates.soft.toFixed(4) : null,
+    med4: aggregates.medium != null ? +aggregates.medium.toFixed(4) : null,
+    med9: aggregates.hard != null ? +aggregates.hard.toFixed(4) : null,
   })
 
   const recentTools = recentToolSummary(messages)
-  const { fire, level, text } = session.nudge.update(lastScore, session.turnCounter, recentTools)
+  const { fire, level, text } = session.nudge.update(
+    filters, lastScore, session.turnCounter, recentTools,
+  )
 
   if (!fire) return messages
 
@@ -124,6 +139,7 @@ function pruneIfStuck(messages) {
     turn: session.turnCounter,
     score: +lastScore.toFixed(4),
     nudgeLevel: level,
+    tier: ['soft', 'medium', 'hard'][level],
     recentTools: recentTools.slice(-5),
   })
 
@@ -220,6 +236,13 @@ const server = createServer(async (req, res) => {
 })
 
 server.listen(PORT, () => {
-  log('proxy_listening', { port: PORT })
-  process.stderr.write(`[proxy] Listening on :${PORT} — MLP v5, threshold=${threshold}\n`)
+  const actualPort = server.address().port
+  log('proxy_listening', { port: actualPort })
+  const t = DEFAULT_TIERED_CONFIG
+  process.stderr.write(
+    `[proxy] Listening on :${actualPort} — LR + tiered `
+    + `(soft=mean${t.soft.n}@${t.soft.threshold} `
+    + `medium=median${t.medium.n}@${t.medium.threshold} `
+    + `hard=median${t.hard.n}@${t.hard.threshold})\n`,
+  )
 })

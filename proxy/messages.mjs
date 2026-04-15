@@ -23,49 +23,47 @@ export function extractResultText(content) {
 }
 
 /**
- * Extract every tool call and its output from the full message history,
- * in assistant-turn order. Used on the first API call to build ring buffer
- * state from existing context.
+ * Extract every tool call and its output from the full message history.
+ *
+ * Emission order matches src/pipeline/parsers/nlile.py `parse_session`:
+ * a single walk over messages, staging tool_use blocks in `pending` and
+ * emitting them when their matching tool_result is seen (in tool_result
+ * order, not tool_use order). Orphan tool_uses — ones without a matching
+ * tool_result — are flushed at the end with empty output. This parity is
+ * critical because the LR classifier was trained on Python-parsed
+ * features; any reordering would shift history-dependent values.
  *
  * @param {Array} messages  full messages array from request body
  * @returns {{ toolName: string, input: object, output: string }[]}
  */
 export function extractAllToolCalls(messages) {
-  // First pass: collect all tool_use blocks keyed by id
   const pending = new Map()
+  const steps = []
   for (const msg of messages) {
-    if (msg.role === 'assistant' && Array.isArray(msg.content)) {
-      for (const block of msg.content) {
-        if (block.type === 'tool_use') {
-          pending.set(block.id, { toolName: block.name, input: block.input ?? {}, output: '' })
+    if (!Array.isArray(msg.content)) continue
+    for (const block of msg.content) {
+      if (!block || typeof block !== 'object') continue
+      const btype = block.type
+      if (btype === 'tool_use') {
+        pending.set(block.id, {
+          toolName: block.name,
+          input: block.input ?? {},
+          output: '',
+        })
+      } else if (btype === 'tool_result') {
+        const tid = block.tool_use_id
+        if (pending.has(tid)) {
+          const tc = pending.get(tid)
+          pending.delete(tid)
+          tc.output = extractResultText(block.content)
+          steps.push(tc)
         }
       }
     }
   }
-
-  // Second pass: match tool_results to their tool_use entries
-  for (const msg of messages) {
-    if (msg.role === 'user' && Array.isArray(msg.content)) {
-      for (const block of msg.content) {
-        if (block.type === 'tool_result' && pending.has(block.tool_use_id)) {
-          pending.get(block.tool_use_id).output = extractResultText(block.content)
-        }
-      }
-    }
-  }
-
-  // Third pass: emit in original assistant-turn order
-  const ordered = []
-  for (const msg of messages) {
-    if (msg.role === 'assistant' && Array.isArray(msg.content)) {
-      for (const block of msg.content) {
-        if (block.type === 'tool_use' && pending.has(block.id)) {
-          ordered.push(pending.get(block.id))
-        }
-      }
-    }
-  }
-  return ordered
+  // Flush orphan tool_uses (no matching tool_result) at the end.
+  for (const tc of pending.values()) steps.push(tc)
+  return steps
 }
 
 /**
