@@ -33,9 +33,6 @@ def _preflight_vram_check() -> None:
     """Fail fast if VRAM is dirty. On ROCm/gfx1201 a crashed process can
     leave a 10+ GB KFD zombie allocation that makes subsequent training
     attempts OOM immediately. We want a loud error, not a silent cascade.
-
-    Also limits per-process VRAM so a crash only poisons our budget instead
-    of the whole GPU.
     """
     import torch
     if not torch.cuda.is_available():
@@ -51,16 +48,8 @@ def _preflight_vram_check() -> None:
     print(f"  free:   {free_gb:.1f} GB", flush=True)
     if free_gb < 13.0:
         raise RuntimeError(
-            f"Only {free_gb:.1f} GB VRAM free (need >=13 GB).\n"
-            f"Something else is holding VRAM — likely a zombie KFD allocation "
-            f"from a previous crash.\n"
-            f"Recovery: reboot OR `sudo rocm-smi --gpureset --device 0` OR "
-            f"restart the desktop session (kill/restart KDE/gnome-shell)."
+            f"Only {free_gb:.1f} GB VRAM free (need >=13 GB)."
         )
-    # Cap per-process budget at 90% so any future leak from *this* process
-    # doesn't poison more than we asked for.
-    torch.cuda.set_per_process_memory_fraction(0.90, 0)
-    print(f"  per-process cap set to 90% ({total_gb * 0.9:.1f} GB)", flush=True)
 
 
 def main() -> int:
@@ -92,10 +81,8 @@ def main() -> int:
     from transformers import (
         AutoModelForCausalLM,
         AutoTokenizer,
-        BitsAndBytesConfig,
     )
-    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-    from trl import SFTTrainer, SFTConfig
+    from peft import LoraConfig, get_peft_model
 
     # Layer 1: preflight VRAM check — fail fast on dirty GPU state.
     _preflight_vram_check()
@@ -158,8 +145,7 @@ def main() -> int:
     # memory and OOMs on 16 GB VRAM at 1024 tokens (we hit this empirically).
     # SDPA is memory-efficient and backed by torch-rocm's fused kernels.
     # Phi-4-mini is natively trained in bf16 per the model card. Loading in
-    # bf16 hits different torch-rocm kernel paths than fp16 and avoids a
-    # specific segfault we hit with fp16 + SDPA on gfx1201 (torch 2.11+rocm7.2).
+    # bf16 matches the weight dtype and hits the fused bf16 kernel paths.
     print(f"\n=== Loading model (bf16, device_map=auto) ===")
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
@@ -167,9 +153,12 @@ def main() -> int:
         device_map="auto",
         attn_implementation="sdpa",
     )
-    # Enable gradient checkpointing for VRAM savings on long sequences
-    model.gradient_checkpointing_enable()
     model.config.use_cache = False
+
+    # NOTE: do NOT call model.gradient_checkpointing_enable() here. We let
+    # SFTConfig(gradient_checkpointing=True) handle that, but only AFTER
+    # LoRA is applied. Enabling it manually before peft wraps the model
+    # can cause grad flow through the frozen base to fail silently.
 
     # ── LoRA ───────────────────────────────────────────────────────────────
     print(f"\n=== Applying LoRA ===")
@@ -182,11 +171,32 @@ def main() -> int:
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
     )
     # autocast_adapter_dtype=False keeps the LoRA adapter parameters in the
-    # base model's dtype (fp16) instead of upcasting to fp32. The upcast
-    # kernel is missing from torch-rocm 6.3 for gfx1201 (RX 9070 XT) and
-    # crashes with "HIP error: invalid device function".
+    # base model's dtype (bf16) instead of upcasting to fp32. The upcast
+    # kernel has historically been missing from torch-rocm for gfx1201.
     model = get_peft_model(model, lora_config, autocast_adapter_dtype=False)
     model.print_trainable_parameters()
+
+    # Critical for gradient checkpointing + LoRA: the frozen input embeddings
+    # normally have requires_grad=False, which breaks autograd's ability to
+    # propagate gradients *through* the embedding layer back to the LoRA
+    # adapters in deeper layers. enable_input_require_grads() inserts a
+    # forward hook that forces the embedding output to require grad, which
+    # makes the gradient path complete without unfreezing the embedding.
+    # Without this, the training loop computes zero gradients and
+    # trainer.train() silently exits at step 0 — the exact symptom we hit.
+    if hasattr(model, "enable_input_require_grads"):
+        model.enable_input_require_grads()
+    else:
+        def _make_inputs_require_grad(module, input, output):
+            output.requires_grad_(True)
+        model.get_input_embeddings().register_forward_hook(_make_inputs_require_grad)
+
+    # Enable gradient checkpointing NOW, immediately after LoRA + input_grads.
+    # Must happen BEFORE the sanity forward or it will OOM trying to hold
+    # full activations for a 3.8B model at seq 995.
+    model.gradient_checkpointing_enable(
+        gradient_checkpointing_kwargs={"use_reentrant": False}
+    )
 
     # ── Dataset ────────────────────────────────────────────────────────────
     print(f"\n=== Loading dataset ===")
@@ -246,119 +256,278 @@ def main() -> int:
     print(f"  after truncation: train={len(train_ds)} val={len(val_ds)} "
           f"({time.time()-t0:.1f}s)")
 
-    # trl's SFTTrainer with messages format expects a "messages" field.
-    # completion_only_loss=True tells it to mask user/system tokens.
+    # ── Sanity forward: same pattern as docker_real_test.py ─────────────
+    # If this crashes, something in our setup (preflight, imports, etc.)
+    # broke the model. If it works, the crash is in our training loop.
+    import time
+    _breadcrumb_path = "/tmp/finetune_breadcrumb.log"
+    with open(_breadcrumb_path, "w") as _bf:
+        _bf.write(f"[{time.time():.1f}] sanity-begin\n")
+        _bf.flush()
+        os.fsync(_bf.fileno())
 
-    # ── Training ───────────────────────────────────────────────────────────
-    sft_config = SFTConfig(
-        output_dir=args.output_dir,
-        num_train_epochs=args.epochs,
-        per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.batch_size,
-        gradient_accumulation_steps=args.grad_accum,
-        learning_rate=args.lr,
-        warmup_steps=args.warmup_steps,
-        logging_steps=20,
-        eval_strategy="steps",
-        eval_steps=args.eval_steps,
-        save_strategy="steps" if not args.smoke else "no",
-        save_steps=args.save_steps,
-        save_total_limit=2,
-        max_length=args.max_length,
-        gradient_checkpointing=True,
-        gradient_checkpointing_kwargs={"use_reentrant": False},
-        bf16=True,
-        fp16=False,
-        optim="adamw_torch",
-        lr_scheduler_type="cosine",
-        seed=args.seed,
-        # Multi-turn chat format: assistant_only_loss masks everything except
-        # assistant label tokens. Do NOT also set completion_only_loss=True —
-        # that's for single user+completion pairs and conflicts with
-        # assistant_only_loss in trl 1.1.0, causing trainer.train() to return
-        # immediately with no loss.
-        assistant_only_loss=True,
-        report_to=[],
+    def _crumb(msg):
+        with open(_breadcrumb_path, "a") as _bf:
+            _bf.write(f"[{time.time():.1f}] {msg}\n")
+            _bf.flush()
+            os.fsync(_bf.fileno())
+
+    print(f"\n=== Sanity forward (random seq 995) ===", flush=True)
+    _crumb("sanity-print-done")
+    _sanity_dev = next(model.parameters()).device
+    _crumb(f"sanity-device={_sanity_dev}")
+    _x = torch.randint(0, 200000, (1, 995), device=_sanity_dev, dtype=torch.long)
+    _crumb("sanity-x-created")
+    _y = _x.clone()
+    _attn = torch.ones_like(_x)
+    _crumb("sanity-tensors-ready")
+    _t0 = time.time()
+    model.train()
+    _crumb("sanity-model-train")
+    _out = model(input_ids=_x, attention_mask=_attn, labels=_y)
+    _crumb(f"sanity-forward-done loss={_out.loss.item():.4f}")
+    print(f"  sanity forward ok loss={_out.loss.item():.4f} took={time.time()-_t0:.1f}s", flush=True)
+    _t0 = time.time()
+    _out.loss.backward()
+    _crumb("sanity-backward-done")
+    print(f"  sanity backward ok took={time.time()-_t0:.1f}s", flush=True)
+    # Clear grads before real training starts
+    for p in model.parameters():
+        if p.grad is not None:
+            p.grad = None
+    del _x, _y, _attn, _out
+    torch.cuda.empty_cache()
+    _crumb("sanity-complete")
+
+    # ── Pre-tokenize the dataset manually ─────────────────────────────────
+    # We use a manual training loop instead of trl's SFTTrainer. SFTTrainer
+    # 1.1.0 silently exits at step 0 on our multi-turn chat data and we can't
+    # debug it — the failure has no Python traceback. A hand-written loop is
+    # ~20 lines, fully under our control, and we've already validated
+    # (docker_lora_test.py) that forward+backward works with this exact
+    # LoRA + grad checkpointing setup.
+    print(f"\n=== Tokenizing ===", flush=True)
+
+    PAD = tokenizer.pad_token_id
+    IGNORE = -100
+
+    def tokenize_session(messages):
+        """Apply chat template, return (input_ids, labels) where labels have
+        -100 everywhere except inside assistant spans. Uses the template's
+        {% generation %} markers via return_assistant_tokens_mask=True."""
+        enc = tokenizer.apply_chat_template(
+            messages,
+            tokenize=True,
+            add_generation_prompt=False,
+            return_assistant_tokens_mask=True,
+            return_dict=True,
+        )
+        input_ids = enc["input_ids"]
+        assistant_mask = enc["assistant_masks"]
+        # Labels = input_ids where assistant_mask==1, IGNORE elsewhere
+        labels = [tok if m == 1 else IGNORE for tok, m in zip(input_ids, assistant_mask)]
+        return input_ids, labels
+
+    t0 = time.time()
+    train_examples = []
+    for ex in train_ds:
+        input_ids, labels = tokenize_session(ex["messages"])
+        # Truncate tail if over max_length (shouldn't happen after the earlier
+        # message-level truncation, but defensive)
+        if len(input_ids) > args.max_length:
+            input_ids = input_ids[: args.max_length]
+            labels = labels[: args.max_length]
+        if sum(1 for l in labels if l != IGNORE) == 0:
+            continue  # no assistant tokens → nothing to train on
+        train_examples.append((input_ids, labels))
+
+    val_examples = []
+    for ex in val_ds:
+        input_ids, labels = tokenize_session(ex["messages"])
+        if len(input_ids) > args.max_length:
+            input_ids = input_ids[: args.max_length]
+            labels = labels[: args.max_length]
+        if sum(1 for l in labels if l != IGNORE) == 0:
+            continue
+        val_examples.append((input_ids, labels))
+
+    print(f"  train examples after tokenize: {len(train_examples)}", flush=True)
+    print(f"  val examples after tokenize: {len(val_examples)}", flush=True)
+    print(f"  tokenize time: {time.time()-t0:.1f}s", flush=True)
+
+    if len(train_examples) == 0:
+        print("ERROR: no trainable examples. Check chat template + masking.", flush=True)
+        return 1
+
+    # Sanity: first example
+    first_ids, first_labels = train_examples[0]
+    n_label_tok = sum(1 for l in first_labels if l != IGNORE)
+    label_positions = [i for i, l in enumerate(first_labels) if l != IGNORE]
+    print(f"  first example: input_ids len={len(first_ids)} "
+          f"labels non-masked={n_label_tok}", flush=True)
+    if label_positions:
+        decoded = tokenizer.decode([first_ids[i] for i in label_positions[:16]])
+        print(f"  first label tokens decoded: {decoded!r}", flush=True)
+
+    # ── Collator (pads to batch max, sets labels to -100 at pad positions) ─
+    def collate(batch):
+        max_len = max(len(ids) for ids, _ in batch)
+        input_ids_tensor = torch.full((len(batch), max_len), PAD, dtype=torch.long)
+        labels_tensor = torch.full((len(batch), max_len), IGNORE, dtype=torch.long)
+        attn_tensor = torch.zeros((len(batch), max_len), dtype=torch.long)
+        for i, (ids, labs) in enumerate(batch):
+            L = len(ids)
+            input_ids_tensor[i, :L] = torch.tensor(ids, dtype=torch.long)
+            labels_tensor[i, :L] = torch.tensor(labs, dtype=torch.long)
+            attn_tensor[i, :L] = 1
+        return {
+            "input_ids": input_ids_tensor,
+            "labels": labels_tensor,
+            "attention_mask": attn_tensor,
+        }
+
+    # ── Training loop ─────────────────────────────────────────────────────
+    from torch.utils.data import DataLoader
+    from torch.optim import AdamW
+    # (gradient_checkpointing_enable already called up above after LoRA)
+
+    train_loader = DataLoader(
+        train_examples,
+        batch_size=args.batch_size,
+        shuffle=True,
+        collate_fn=collate,
+        num_workers=0,
+    )
+    val_loader = DataLoader(
+        val_examples,
+        batch_size=args.batch_size,
+        shuffle=False,
+        collate_fn=collate,
+        num_workers=0,
     )
 
-    # trl ≥1.0 renamed `tokenizer` → `processing_class`
-    trainer = SFTTrainer(
-        model=model,
-        processing_class=tokenizer,
-        args=sft_config,
-        train_dataset=train_ds,
-        eval_dataset=val_ds,
-    )
+    # Only LoRA params get trained
+    trainable = [p for p in model.parameters() if p.requires_grad]
+    optimizer = AdamW(trainable, lr=args.lr, weight_decay=0.0)
 
-    print(f"\n=== After SFTTrainer init ===", flush=True)
-    print(f"  train dataset: {trainer.train_dataset}", flush=True)
-    print(f"  train length: {len(trainer.train_dataset)}", flush=True)
-    if len(trainer.train_dataset) > 0:
-        sample = trainer.train_dataset[0]
-        print(f"  first example keys: {list(sample.keys())}", flush=True)
-        if "input_ids" in sample:
-            print(f"  first input_ids len: {len(sample['input_ids'])}", flush=True)
-        if "labels" in sample:
-            n_label_tok = sum(1 for t in sample["labels"] if t != -100)
-            print(f"  first labels len: {len(sample['labels'])}  "
-                  f"non-masked: {n_label_tok}", flush=True)
-        if "assistant_masks" in sample:
-            masks = sample["assistant_masks"]
-            n_ones = sum(1 for m in masks if m == 1)
-            print(f"  first assistant_masks len: {len(masks)}  ones: {n_ones}", flush=True)
-            # Show which tokens are marked
-            ids = sample["input_ids"]
-            marked_toks = [ids[i] for i, m in enumerate(masks) if m == 1]
-            if marked_toks:
-                print(f"  first marked token: {marked_toks[0]} "
-                      f"({tokenizer.decode([marked_toks[0]])!r})", flush=True)
-                print(f"  decoded marked region: "
-                      f"{tokenizer.decode(marked_toks[:20])!r}", flush=True)
+    total_steps = (len(train_examples) // args.batch_size + 1) * int(args.epochs)
+    total_steps = max(total_steps // args.grad_accum, 1)
+    print(f"  total optimizer steps: ~{total_steps}", flush=True)
 
-    # (Removed manual forward+backward probe — it was a debug aid. If training
-    # itself fails we'll see the trainer's own error message now.)
+    device = next(model.parameters()).device
+    print(f"  device: {device}", flush=True)
 
     print(f"\n=== Training ===", flush=True)
     import traceback
-    import signal
+    # Breadcrumb file: survives silent crashes that swallow stdout.
+    # Each major phase writes a line here; if the process dies, the last
+    # line tells us where it got.
+    breadcrumb_path = "/tmp/finetune_breadcrumb.log"
+    def crumb(msg):
+        with open(breadcrumb_path, "a") as bf:
+            bf.write(f"[{time.time():.1f}] {msg}\n")
+            bf.flush()
+            os.fsync(bf.fileno())
+    # Start fresh each run
+    with open(breadcrumb_path, "w") as bf:
+        bf.write("")
+    crumb("training-start")
 
-    # Layer 3: signal handler — catches SIGTERM and attempts orderly cleanup
-    # (only useful on polite kills, not SIGKILL / segfaults).
-    _shutdown_requested = [False]
-    def _sigterm_handler(signum, frame):
-        print(f"\n!!! received signal {signum}, requesting shutdown", flush=True)
-        _shutdown_requested[0] = True
-    signal.signal(signal.SIGTERM, _sigterm_handler)
-    signal.signal(signal.SIGINT, _sigterm_handler)
+    model.train()
+    crumb("model-set-train")
+    global_step = 0
+    running_loss = 0.0
+    running_n = 0
+    t_train = time.time()
 
-    # Layer 4: try/finally with explicit tear-down so a Python-level exception
-    # doesn't leak the trainer object + its references into the next run.
     try:
-        result = trainer.train()
-        print(f"trainer.train() returned: {result}", flush=True)
+        for epoch in range(int(args.epochs)):
+            crumb(f"epoch-{epoch}-start")
+            for step, batch in enumerate(train_loader):
+                if step < 3:
+                    crumb(f"e{epoch}-s{step}-pre-move")
+                batch = {k: v.to(device) for k, v in batch.items()}
+                if step < 3:
+                    crumb(f"e{epoch}-s{step}-pre-forward shape={tuple(batch['input_ids'].shape)}")
+                out = model(**batch)
+                if step < 3:
+                    crumb(f"e{epoch}-s{step}-post-forward loss={out.loss.item():.4f}")
+                loss = out.loss / args.grad_accum
+                loss.backward()
+                if step < 3:
+                    crumb(f"e{epoch}-s{step}-post-backward")
+                running_loss += out.loss.item()
+                running_n += 1
+
+                if (step + 1) % args.grad_accum == 0:
+                    torch.nn.utils.clip_grad_norm_(trainable, 1.0)
+                    optimizer.step()
+                    optimizer.zero_grad(set_to_none=True)
+                    global_step += 1
+
+                    if global_step % 20 == 0:
+                        avg_loss = running_loss / max(running_n, 1)
+                        elapsed = time.time() - t_train
+                        print(f"  epoch={epoch} step={global_step}/{total_steps} "
+                              f"loss={avg_loss:.4f} "
+                              f"elapsed={elapsed:.0f}s "
+                              f"vram={torch.cuda.memory_allocated()/1e9:.1f}GB",
+                              flush=True)
+                        running_loss = 0.0
+                        running_n = 0
+
+                    if global_step % args.eval_steps == 0 and len(val_examples) > 0:
+                        model.eval()
+                        val_loss = 0.0
+                        val_n = 0
+                        with torch.no_grad():
+                            for vbatch in val_loader:
+                                vbatch = {k: v.to(device) for k, v in vbatch.items()}
+                                vout = model(**vbatch)
+                                val_loss += vout.loss.item()
+                                val_n += 1
+                        print(f"  [eval @ step {global_step}] val_loss="
+                              f"{val_loss/max(val_n,1):.4f} over {val_n} batches",
+                              flush=True)
+                        model.train()
+
+        # Final eval
+        if len(val_examples) > 0:
+            model.eval()
+            val_loss = 0.0
+            val_n = 0
+            with torch.no_grad():
+                for vbatch in val_loader:
+                    vbatch = {k: v.to(device) for k, v in vbatch.items()}
+                    vout = model(**vbatch)
+                    val_loss += vout.loss.item()
+                    val_n += 1
+            print(f"\n=== Final val_loss: {val_loss/max(val_n,1):.4f} "
+                  f"over {val_n} batches ===", flush=True)
+
     except Exception:
         traceback.print_exc()
         raise
     finally:
         try:
             print(f"\n=== Cleanup ===", flush=True)
-            del trainer
-        except NameError:
-            pass
-        try:
-            del model
+            optimizer.zero_grad(set_to_none=True)
         except NameError:
             pass
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
-        free_after, _ = torch.cuda.mem_get_info(0)
-        print(f"  vram free after cleanup: {free_after/1e9:.1f} GB", flush=True)
+        try:
+            free_after, _ = torch.cuda.mem_get_info(0)
+            print(f"  vram free after cleanup: {free_after/1e9:.1f} GB", flush=True)
+        except Exception:
+            pass
 
     if not args.smoke:
-        print(f"\n=== Saving LoRA adapter ===")
-        trainer.save_model(args.output_dir)
+        print(f"\n=== Saving LoRA adapter ===", flush=True)
+        os.makedirs(args.output_dir, exist_ok=True)
+        model.save_pretrained(args.output_dir)
         tokenizer.save_pretrained(args.output_dir)
-        print(f"  saved: {args.output_dir}")
+        print(f"  saved: {args.output_dir}", flush=True)
 
     return 0
 

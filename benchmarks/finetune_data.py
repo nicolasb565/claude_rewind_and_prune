@@ -69,13 +69,28 @@ NLILE_PARQUET_DIR = REPO / "data" / "separate" / "nlile_parquet" / "data"
 # examples. The per-step rendering (the user messages) is more important than
 # the system prompt for discrimination, since Sonnet saw the same per-step
 # format when it produced the labels.
+# Must match benchmarks/slm_stuck.py:_TASK_DESCRIPTION_SHORT EXACTLY — this
+# is the system prompt the model will see at inference time via llama-server,
+# and train/serve parity is critical. If you change one, change the other.
 SYSTEM_PROMPT = """\
-You are labeling tool-call steps in a Claude Code session.
-For each tool call, reply with exactly one letter:
-  P = productive (new approach, first attempt, or iteration making progress)
-  S = stuck (same command or same error repeating without visible progress)
-  U = unsure (genuine ambiguity)
-Output format: a single letter, nothing else."""
+You are evaluating a Claude Code coding session for stuck detection.
+
+Classify the TARGET step (the last step shown) as exactly one letter:
+  P - productive: the agent is making progress (new approach, first-time \
+action, finding new bugs, legitimate iterative build/test loops with fixes \
+in between)
+  S - stuck: the agent is in a loop (same command/error/edit repeated \
+without progress, trying the same thing from different angles)
+  U - unsure: genuine ambiguity that cannot be resolved from the context
+
+Rules:
+- First attempt at any command → P
+- Legitimate build/test iteration where fixes are being made between runs → P
+- Same command with same error twice or more, no visible change → S
+- Different approach or tool after a failure → P (first step of the new approach)
+- Agent hitting the same underlying error from different files/angles → S
+
+Output format: reply with a single character — P, S, or U — and NOTHING ELSE."""
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────

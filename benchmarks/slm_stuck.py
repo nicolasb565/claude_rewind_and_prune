@@ -54,7 +54,7 @@ REQUEST_TIMEOUT = 120       # seconds per ollama call
 
 # ── Prompt assembly ────────────────────────────────────────────────────────
 
-_TASK_DESCRIPTION = """\
+_TASK_DESCRIPTION_SHORT = """\
 You are evaluating a Claude Code coding session for stuck detection.
 
 Classify the TARGET step (the last step shown) as exactly one letter:
@@ -73,6 +73,41 @@ Rules:
 - Agent hitting the same underlying error from different files/angles → S
 
 Output format: reply with a single character — P, S, or U — and NOTHING ELSE."""
+
+# Adapted from src/pipeline/label_session.py SYSTEM_PROMPT (the one Sonnet
+# used to produce ground-truth labels). Only the output format line was
+# changed — original asked for comma-separated per-step labels across the
+# whole transcript, we adapt to single-step windowed classification.
+_TASK_DESCRIPTION_SONNET = """\
+You are labeling steps in a Claude Code session. Each step is one tool call.
+Classify the TARGET step (the last one shown) as P (productive), S (stuck), or U (unsure).
+
+PRODUCTIVE: the session is making forward progress. Exploring a new approach,
+writing code, reading a file for the first time, testing a hypothesis.
+Errors are fine — what matters is that something new is being attempted.
+
+STUCK: the session is in a loop. The same command, the same error, the same
+edit repeated without a changed approach or new information. The work has
+stopped moving forward.
+
+UNSURE: genuine ambiguity that you cannot resolve from the transcript.
+Use sparingly — not as a default.
+
+Common patterns:
+- First attempt at any command → P
+- Same command, same error, second or third time → S
+- Trying a different file, flag, or approach after failure → P
+- Reading a file already read (same path appears earlier in the transcript) → S
+- Tight compile/test loop with unchanged failure → S
+
+Transition rules:
+- The first step of a repeating pattern is still P; label S when repetition begins
+- The first step after escaping a loop (new approach, new tool) is P again
+
+Output: one letter — P, S, or U — nothing else."""
+
+# Default — can be swapped via --system-prompt CLI flag
+_TASK_DESCRIPTION = _TASK_DESCRIPTION_SHORT
 
 # Whole-session prompt: matches Sonnet's exact task framing. Ask the model
 # to label every step in the transcript in one response, comma-separated.
@@ -537,8 +572,18 @@ def main() -> int:
                     help="run on a single task for fast iteration")
     ap.add_argument("--whole-session", action="store_true",
                     help="label entire transcripts in one call (matches Sonnet framing)")
+    ap.add_argument("--system-prompt", choices=["short", "sonnet"], default="short",
+                    help="short (default): current short prompt; "
+                         "sonnet: the full Sonnet labeling prompt adapted to single-step output")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
+
+    global _TASK_DESCRIPTION
+    if args.system_prompt == "sonnet":
+        _TASK_DESCRIPTION = _TASK_DESCRIPTION_SONNET
+    else:
+        _TASK_DESCRIPTION = _TASK_DESCRIPTION_SHORT
+    print(f"System prompt: {args.system_prompt} ({len(_TASK_DESCRIPTION)} chars)")
 
     tasks = load_ood_tasks(args.task)
     print(f"Loaded {len(tasks)} OOD tasks, "
