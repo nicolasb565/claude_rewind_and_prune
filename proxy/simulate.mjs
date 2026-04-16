@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Offline replay: feed a benchmark transcript through the LR detector +
- * three-tier filter + tiered nudge controller and emit what the proxy
+ * two-tier filter + tiered nudge controller and emit what the proxy
  * WOULD have done, without making any API calls.
  *
  * Usage:
@@ -68,7 +68,7 @@ for (const line of rawLines) {
 // ── Simulation ─────────────────────────────────────────────────────────────
 const detector = new LRSessionDetector(lr)
 const nudge = new TieredNudgeController()
-const LEVEL_NAMES = ['soft', 'medium', 'hard']
+const LEVEL_NAMES = ['medium', 'hard']
 
 const toolCalls = extractAllToolCalls(messages)
 
@@ -85,10 +85,8 @@ for (const tc of toolCalls) {
     turn,
     tool: tc.toolName,
     score: +result.score.toFixed(4),
-    soft: result.filters.soft,
     medium: result.filters.medium,
     hard: result.filters.hard,
-    mean2: result.aggregates.soft == null ? null : +result.aggregates.soft.toFixed(4),
     med4: result.aggregates.medium == null ? null : +result.aggregates.medium.toFixed(4),
     med9: result.aggregates.hard == null ? null : +result.aggregates.hard.toFixed(4),
     fired: decision.fire,
@@ -106,9 +104,8 @@ const summary = {
   maxScore: events.reduce((m, e) => Math.max(m, e.score), 0),
   firedNudges: events.filter((e) => e.fired).length,
   firedByTier: {
-    soft:   events.filter((e) => e.fired && e.level === 0).length,
-    medium: events.filter((e) => e.fired && e.level === 1).length,
-    hard:   events.filter((e) => e.fired && e.level === 2).length,
+    medium: events.filter((e) => e.fired && e.level === 0).length,
+    hard:   events.filter((e) => e.fired && e.level === 1).length,
   },
 }
 
@@ -121,13 +118,12 @@ if (args.json) {
   console.log(`tool calls:    ${summary.toolCalls}`)
   console.log(`max score:     ${fmt(summary.maxScore)}`)
   console.log(`fired nudges:  ${summary.firedNudges} `
-    + `(soft=${summary.firedByTier.soft} `
-    + `medium=${summary.firedByTier.medium} `
+    + `(medium=${summary.firedByTier.medium} `
     + `hard=${summary.firedByTier.hard})`)
   if (args.trace) {
     console.log('--- per-turn trace ---')
     for (const e of events) {
-      const flt = (e.soft ? 's' : '-') + (e.medium ? 'm' : '-') + (e.hard ? 'h' : '-')
+      const flt = (e.medium ? 'M' : '-') + (e.hard ? 'H' : '-')
       const fire = e.fired ? ` NUDGE[${e.nudgeTier}]` : ''
       console.log(
         `  turn=${String(e.turn).padStart(3)} ${e.tool.padEnd(8)} `

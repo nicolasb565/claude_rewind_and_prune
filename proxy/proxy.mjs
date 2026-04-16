@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * LR + three-tier filter proxy for Claude Code.
+ * LR + two-tier filter proxy for Claude Code.
  *
  * Intercepts Anthropic API requests, scores each tool call through the
- * LR stuck detector + three-tier filter (soft/medium/hard), and injects a
+ * LR stuck detector + two-tier filter (medium/hard), and injects a
  * corrective nudge when the state machine advances a tier. No modifications
  * to Claude Code required.
  *
@@ -119,10 +119,8 @@ function pruneIfStuck(messages) {
     sessionKeyPrefix,
     turn: session.turnCounter,
     score: +lastScore.toFixed(4),
-    soft: filters.soft,
     medium: filters.medium,
     hard: filters.hard,
-    mean2: aggregates.soft != null ? +aggregates.soft.toFixed(4) : null,
     med4: aggregates.medium != null ? +aggregates.medium.toFixed(4) : null,
     med9: aggregates.hard != null ? +aggregates.hard.toFixed(4) : null,
   })
@@ -139,7 +137,7 @@ function pruneIfStuck(messages) {
     turn: session.turnCounter,
     score: +lastScore.toFixed(4),
     nudgeLevel: level,
-    tier: ['soft', 'medium', 'hard'][level],
+    tier: ['medium', 'hard'][level],
     recentTools: recentTools.slice(-5),
   })
 
@@ -240,9 +238,8 @@ server.listen(PORT, () => {
   log('proxy_listening', { port: actualPort })
   const t = DEFAULT_TIERED_CONFIG
   process.stderr.write(
-    `[proxy] Listening on :${actualPort} — LR + tiered `
-    + `(soft=mean${t.soft.n}@${t.soft.threshold} `
-    + `medium=median${t.medium.n}@${t.medium.threshold} `
-    + `hard=median${t.hard.n}@${t.hard.threshold})\n`,
+    `[proxy] Listening on :${actualPort} — LR + 2-tier `
+    + `(medium=${t.medium.kind}${t.medium.n}@${t.medium.threshold} `
+    + `hard=${t.hard.kind}${t.hard.n}@${t.hard.threshold})\n`,
   )
 })

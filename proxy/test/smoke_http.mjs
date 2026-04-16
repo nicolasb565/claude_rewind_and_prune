@@ -185,9 +185,8 @@ async function main() {
   console.log(`  upstream received: 1 request, forwarded ${fwd.messages.length} messages`)
   console.log(`  log types: ${[...types].sort().join(', ')}`)
   console.log(`  last lr_score: score=${lastLrScore.score} `
-    + `soft=${lastLrScore.soft} medium=${lastLrScore.medium} hard=${lastLrScore.hard}`)
-  console.log(`  filter aggregates: mean2=${lastLrScore.mean2} `
-    + `med4=${lastLrScore.med4} med9=${lastLrScore.med9}`)
+    + `medium=${lastLrScore.medium} hard=${lastLrScore.hard}`)
+  console.log(`  filter aggregates: med4=${lastLrScore.med4} med9=${lastLrScore.med9}`)
 
   proxy.kill()
   fakeUpstream.close()

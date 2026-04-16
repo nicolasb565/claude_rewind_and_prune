@@ -1,5 +1,5 @@
 /**
- * Per-session LR stuck detector + three-tier filter.
+ * Per-session LR stuck detector + two-tier filter.
  *
  * Drop-in replacement for SessionDetector that wraps the ContentFeature
  * extractor, LR classifier, and TieredFilter into one stateful object.
@@ -9,8 +9,8 @@
  *   addStep(toolName, input, output) → { score, filters, aggregates }
  *
  *   score      — LR P(stuck) in [0,1]
- *   filters    — { soft, medium, hard } booleans from TieredFilter
- *   aggregates — { soft, medium, hard } aggregate values or null if not ready
+ *   filters    — { medium, hard } booleans from TieredFilter
+ *   aggregates — { medium, hard } aggregate values or null if not ready
  */
 
 import { parseToolCall } from './features.mjs'
@@ -38,7 +38,6 @@ export class LRSessionDetector {
     return {
       score,
       filters: {
-        soft: filterState.soft,
         medium: filterState.medium,
         hard: filterState.hard,
       },
