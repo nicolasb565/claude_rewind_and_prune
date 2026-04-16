@@ -226,6 +226,57 @@ describe('getSessionKey', () => {
     ]
     assert.equal(getSessionKey(messages), 'first user')
   })
+
+  test('strips <system-reminder> blocks', () => {
+    const messages = [{
+      role: 'user',
+      content: [{
+        type: 'text',
+        text: '<system-reminder>boilerplate</system-reminder>real task prompt',
+      }],
+    }]
+    assert.equal(getSessionKey(messages), 'real task prompt')
+  })
+
+  test('strips multi-line and multi-block system reminders', () => {
+    const messages = [{
+      role: 'user',
+      content: [{
+        type: 'text',
+        text: '<system-reminder>\na\nb\n</system-reminder><system-reminder>c</system-reminder>  actual prompt  ',
+      }],
+    }]
+    assert.equal(getSessionKey(messages), 'actual prompt')
+  })
+
+  test('skips purely-boilerplate user messages and uses the next', () => {
+    const messages = [
+      {
+        role: 'user',
+        content: [{ type: 'text', text: '<system-reminder>only boilerplate</system-reminder>' }],
+      },
+      {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'ignored' }],
+      },
+      {
+        role: 'user',
+        content: [{ type: 'text', text: 'real task' }],
+      },
+    ]
+    assert.equal(getSessionKey(messages), 'real task')
+  })
+
+  test('ignores non-text blocks like tool_result when computing the key', () => {
+    const messages = [{
+      role: 'user',
+      content: [
+        { type: 'tool_result', tool_use_id: 't1', content: 'noise' },
+        { type: 'text', text: 'the real prompt' },
+      ],
+    }]
+    assert.equal(getSessionKey(messages), 'the real prompt')
+  })
 })
 
 // ── recentToolSummary ─────────────────────────────────────────────────────────

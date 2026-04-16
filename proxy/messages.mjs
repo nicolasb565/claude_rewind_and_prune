@@ -100,21 +100,34 @@ export function extractLastTurnToolCalls(messages) {
   return toolCalls
 }
 
+const SYSTEM_REMINDER_RE = /<system-reminder>[\s\S]*?<\/system-reminder>/gi
+
 /**
  * Derive a stable session key from the message history.
- * Uses the first 200 chars of the first user message — matches the original proxy.
+ *
+ * Walks user messages in order, strips <system-reminder> blocks (which
+ * Claude Code injects into nearly every first user message, making the
+ * raw first-200-chars collide across tasks), and returns the first
+ * non-empty residue. Falls back to `__default__` if every user message
+ * is pure boilerplate.
  *
  * @param {Array} messages
  * @returns {string}
  */
 export function getSessionKey(messages) {
   for (const msg of messages) {
-    if (msg.role === 'user') {
-      const text = Array.isArray(msg.content)
-        ? msg.content.map((b) => b.text ?? '').join('')
-        : String(msg.content)
-      return text.slice(0, 200) || '__default__'
+    if (msg.role !== 'user') continue
+    let text
+    if (Array.isArray(msg.content)) {
+      text = msg.content
+        .filter((b) => b && b.type === 'text')
+        .map((b) => b.text ?? '')
+        .join('')
+    } else {
+      text = String(msg.content ?? '')
     }
+    const stripped = text.replace(SYSTEM_REMINDER_RE, '').trim()
+    if (stripped) return stripped.slice(0, 200)
   }
   return '__default__'
 }
