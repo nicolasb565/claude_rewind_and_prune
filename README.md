@@ -237,6 +237,10 @@ The ring buffer provides the repetition signal directly: if `cmd_hash` at T equa
 
 8. **Post-filter sweep: median beats linear averaging for step-level precision.** Given the classifier's raw signal is too noisy for hard intervention, trailing-window filters trade recall against precision. Running `benchmarks/lr_filter_sweep.py` across mean, K-of-N, and median aggregators at fine threshold grain produces three clean operating modes on the LR baseline (9 params, 8 content features). `mean-of-2 @ 0.34` preserves the baseline's 7-of-7 session recall with per-step F1 0.369. `median-of-4 @ 0.645` catches 5-of-7 sessions at step P=0.47. `median-of-9 @ 0.605` reaches step P=0.781 and episode F1=0.400 — the only configuration across the entire sweep where per-step TPs meaningfully outnumber FPs (25 vs 7). Intuition: the LR score distribution has asymmetric spike noise — productive steps produce isolated high spikes and stuck episodes produce isolated dips. Linear mean amplifies both; median ignores both by construction.
 
+9. **Detection is reliable; intervention is a null result.** The production 2-tier filter (median-of-4 + median-of-9, both at threshold 0.85) fires selectively on stuck-prone tasks (Fisher's exact p ≈ 0.001 across 30 task-runs: 5/6 nudges landed on the one task with real stuck patterns, zero on 8 productive-only tasks). However, an 11-pair A/B on `03_llvm_loop_vec` showed **no measurable runtime improvement** (Cohen's d = 0.02, mean Δ = +9s). Pass rate was 10/11 OFF vs 11/11 ON — one suggestive FAIL→PASS case, but Fisher's exact p ≈ 0.50. The detector correctly identifies stuck behavior; the nudge intervention doesn't measurably help current Claude Opus, which self-recovers from most loops within a few steps.
+
+10. **Training data diversity is the universal bottleneck.** Four independent model architectures (9-param LR, 4,865-param MLP, phi4-mini LoRA, Ettin-400M encoder) all plateau at the same OOD ceiling. The 97%-nlile training corpus is the binding constraint. Phi4-mini logit extraction confirmed AUC(continuous) ≈ 0.50 on both LoRA checkpoints — zero recoverable signal, not a measurement artifact. Architecture and capacity changes cannot fix a data distribution problem.
+
 ## Related Work
 
 ### Stuck/loop detection in agents
@@ -257,9 +261,14 @@ This work combines: proxy-based interception, tool-call behavioral features, a t
 
 ## Next Steps
 
-1. Build the OOD benchmark harness (Docker-per-task, 12 tasks, dual-mode auth) to validate v5 generalization on real-world code
-2. A/B the nudge strategy on the benchmark: current (silent absorb at 1, soft/medium/hard with cooldowns 1,4,8,8) vs. long-loop focused (raise the silent buffer to ~5 turns, skip soft level)
-3. Collect more sessions with extended thinking blocks — DataClaw (26 sessions) is the only current source
+The stuck-detection investigation concluded with a clean null result on intervention utility. The proxy infrastructure and benchmark harness are reusable for the next research direction: **context hygiene** — manipulating the conversation history to reduce token waste and extend effective session length.
+
+Planned primitives (in priority order):
+1. **Bash output truncation** — rewrite old `tool_result` blocks to first/last N lines after the agent has consumed them. Highest ROI: estimated 30–50% token reduction on build-heavy sessions.
+2. **Rewind with summary** — agent-initiated via MCP tool. Proxy maintains per-session elision maps and rewrites `messages[]` on every subsequent request.
+3. **Bookmarks / active forgetting** — model-controlled memory management tools to test whether Claude can manage its own working memory.
+
+Measurement criteria: (a) short/medium tasks complete as well and more cheaply (tokens/turn), (b) bigger tasks succeed at all (sessions that currently hit context limits).
 
 ## License
 
