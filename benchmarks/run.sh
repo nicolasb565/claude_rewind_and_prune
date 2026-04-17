@@ -44,10 +44,15 @@ while [[ $# -gt 0 ]]; do
     --concurrency) CONCURRENCY="$2"; shift 2 ;;
     --mode)        MODE="$2"; shift 2 ;;
     --run-id)      RUN_ID="$2"; shift 2 ;;
+    --manifest)    MANIFEST="$2"; shift 2 ;;
     -h|--help)     sed -n '2,22p' "$0"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 1 ;;
   esac
 done
+
+# Resolve manifest to absolute path so docker mount works regardless of cwd
+[[ -f "$MANIFEST" ]] || { echo "--manifest not found: $MANIFEST"; exit 1; }
+MANIFEST="$(cd "$(dirname "$MANIFEST")" && pwd)/$(basename "$MANIFEST")"
 
 [[ "$PROXY" == "on" || "$PROXY" == "off" ]] || { echo "--proxy must be on|off"; exit 1; }
 [[ "$AUTH" == "subscription" || "$AUTH" == "env" ]] || { echo "--auth must be subscription|env"; exit 1; }

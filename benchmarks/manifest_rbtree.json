@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "claude_code_version": "2.1.105",
+  "default_model": "claude-opus-4-6",
+  "default_max_turns": 80,
+  "tasks": [
+    {
+      "id": "rbtree_delete_fixup",
+      "tier": 1,
+      "max_turns": 80
+    }
+  ]
+}
