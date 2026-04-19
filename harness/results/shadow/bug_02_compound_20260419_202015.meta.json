@@ -1,0 +1,16 @@
+{
+  "stop_reason": "no_tool_call",
+  "steps": 15,
+  "n_tool_calls": 14,
+  "n_shadow_yes": 3,
+  "n_rewinds": 2,
+  "act_on_shadow": true,
+  "total_input_tokens": 27917,
+  "wall_time_s": 209.6579909324646,
+  "fixture": "bug_02_compound",
+  "model": "Qwen/Qwen3.5-4B",
+  "success": true,
+  "validation_tail": "....                                                                     [100%]\n4 passed in 0.05s\n",
+  "log_path": "harness/results/shadow/bug_02_compound_20260419_202015.jsonl",
+  "stamp": "20260419_202015"
+}

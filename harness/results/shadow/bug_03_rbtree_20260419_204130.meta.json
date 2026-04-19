@@ -1,0 +1,16 @@
+{
+  "stop_reason": "no_tool_call",
+  "steps": 9,
+  "n_tool_calls": 8,
+  "n_shadow_yes": 0,
+  "n_rewinds": 0,
+  "act_on_shadow": true,
+  "total_input_tokens": 61797,
+  "wall_time_s": 366.5121023654938,
+  "fixture": "bug_03_rbtree",
+  "model": "Qwen/Qwen3.5-4B",
+  "success": false,
+  "validation_tail": "      ok, msg = tree.verify_properties()\n>           assert ok, f\"After deleting {k}: {msg}\"\nE           AssertionError: After deleting 29: Red node has red child\nE           assert False\n\ntests/test_rbtree.py:69: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_rbtree.py::test_delete_stress - AssertionError: After delet...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 3 passed in 0.05s\n",
+  "log_path": "harness/results/shadow/bug_03_rbtree_20260419_204130.jsonl",
+  "stamp": "20260419_204130"
+}

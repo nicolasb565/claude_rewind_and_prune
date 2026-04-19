@@ -1,0 +1,8 @@
+{
+  "name": "bug-06-node-trio",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

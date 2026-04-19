@@ -1,0 +1,16 @@
+{
+  "stop_reason": "no_tool_call",
+  "steps": 8,
+  "n_tool_calls": 7,
+  "n_shadow_yes": 1,
+  "n_rewinds": 0,
+  "act_on_shadow": true,
+  "total_input_tokens": 16836,
+  "wall_time_s": 190.90638637542725,
+  "fixture": "bug_05_node",
+  "model": "Qwen/Qwen3.5-4B",
+  "success": true,
+  "validation_tail": "ves all items when length divides evenly\nok 1 - chunk preserves all items when length divides evenly\n  ---\n  duration_ms: 0.486663\n  ...\n# Subtest: chunk preserves all items with remainder\nok 2 - chunk preserves all items with remainder\n  ---\n  duration_ms: 0.069401\n  ...\n# Subtest: chunk produces roughly equal chunks\nok 3 - chunk produces roughly equal chunks\n  ---\n  duration_ms: 0.0783\n  ...\n1..3\n# tests 3\n# suites 0\n# pass 3\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 58.540845\n",
+  "log_path": "harness/results/shadow/bug_05_node_20260419_211113.jsonl",
+  "stamp": "20260419_211113"
+}

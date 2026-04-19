@@ -1,0 +1,14 @@
+{
+  "stop_reason": "no_tool_call",
+  "steps": 4,
+  "n_tool_calls": 3,
+  "n_shadow_yes": 0,
+  "total_input_tokens": 5114,
+  "wall_time_s": 115.26469922065735,
+  "fixture": "bug_01_offbyone",
+  "model": "Qwen/Qwen3.5-4B",
+  "success": false,
+  "validation_tail": "     AssertionError: expected all 10 items preserved, got 9\nE       assert 9 == 10\nE        +  where 9 = sum(<generator object test_partition_preserves_all.<locals>.<genexpr> at 0x710d27c1c450>)\n\ntests/test_partition.py:11: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_partition.py::test_partition_preserves_all - AssertionError...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed in 0.05s\n",
+  "log_path": "harness/results/shadow/bug_01_offbyone_20260419_184004.jsonl",
+  "stamp": "20260419_184004"
+}

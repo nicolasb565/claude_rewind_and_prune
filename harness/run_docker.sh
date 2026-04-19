@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Run the agent harness inside rocm/pytorch. Same container recipe as v13b training.
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HF_CACHE="${HF_CACHE:-$HOME/.cache/huggingface}"
+VIDEO_GID=$(getent group video | cut -d: -f3)
+RENDER_GID=$(getent group render | cut -d: -f3)
+
+if [ -z "${HF_TOKEN:-}" ] && [ -f "$REPO_DIR/.env" ]; then
+  set -a; source "$REPO_DIR/.env"; set +a
+fi
+HF_TOKEN_ARG=()
+[ -n "${HF_TOKEN:-}" ] && HF_TOKEN_ARG=(-e "HF_TOKEN=$HF_TOKEN")
+
+PY_ARGS="harness/run.py"
+for arg in "$@"; do PY_ARGS="$PY_ARGS \"$arg\""; done
+
+docker run --rm \
+    --device=/dev/kfd --device=/dev/dri \
+    --group-add "$VIDEO_GID" --group-add "$RENDER_GID" \
+    --security-opt seccomp=unconfined --shm-size=8g \
+    -v "$REPO_DIR":/workspace \
+    -v "$HF_CACHE":/root/.cache/huggingface \
+    -w /workspace \
+    -e HF_HOME=/root/.cache/huggingface \
+    -e TRANSFORMERS_VERBOSITY=warning -e PYTHONUNBUFFERED=1 \
+    -e HIP_VISIBLE_DEVICES=0 -e CUDA_VISIBLE_DEVICES=0 -e ROCR_VISIBLE_DEVICES=0 \
+    -e PYTORCH_HIP_ALLOC_CONF=expandable_segments:True \
+    "${HF_TOKEN_ARG[@]}" \
+    rocm/pytorch:latest \
+    bash -c "pip install --quiet --no-input 'transformers>=5,<6' 'peft>=0.17' 'accelerate>=1.10' flash-linear-attention pytest && python -u $PY_ARGS"

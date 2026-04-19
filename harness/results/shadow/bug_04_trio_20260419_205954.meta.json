@@ -1,0 +1,16 @@
+{
+  "stop_reason": "no_tool_call",
+  "steps": 22,
+  "n_tool_calls": 21,
+  "n_shadow_yes": 3,
+  "n_rewinds": 0,
+  "act_on_shadow": false,
+  "total_input_tokens": 62564,
+  "wall_time_s": 308.4774408340454,
+  "fixture": "bug_04_trio",
+  "model": "Qwen/Qwen3.5-4B",
+  "success": true,
+  "validation_tail": "......                                                                   [100%]\n6 passed in 0.05s\n",
+  "log_path": "harness/results/shadow/bug_04_trio_20260419_205954.jsonl",
+  "stamp": "20260419_205954"
+}
