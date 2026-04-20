@@ -1,6 +1,0 @@
-{
-  "type": "parquet",
-  "path": "data/separate/nlile_parquet/data/",
-  "parser": "nlile",
-  "description": "Anthropic internal Claude Code sessions (hyperswitch, mostly Rust)"
-}

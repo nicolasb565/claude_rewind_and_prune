@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "claude_code_version": "2.1.105",
+  "default_model": "claude-opus-4-6",
+  "default_max_turns": 100,
+  "tasks": [
+    {
+      "id": "01_gcc_sccvn",
+      "tier": 1,
+      "max_turns": 200,
+      "fixture": {
+        "url": "https://gcc.gnu.org/git/gcc.git",
+        "ref": "17cc07b4d374173be3c51636abd2c9b9e56b2588",
+        "shallow": true,
+        "build_cmd": "mkdir -p build && cd build && ../configure --enable-languages=c,c++ --disable-multilib --disable-bootstrap --disable-libsanitizer --prefix=/opt/gcc-bench && make -j$(nproc) all-stage1-gcc"
+      }
+    },
+    {
+      "id": "02_gcc_mul_overflow",
+      "tier": 1,
+      "max_turns": 200,
+      "fixture": {
+        "url": "https://gcc.gnu.org/git/gcc.git",
+        "ref": "cffe5fd7c98babd85acf86f3e7f8d02b04416ec2",
+        "shallow": true,
+        "build_cmd": "mkdir -p build && cd build && ../configure --enable-languages=c,c++ --disable-multilib --disable-bootstrap --disable-libsanitizer --prefix=/opt/gcc-bench && make -j$(nproc) all-stage1-gcc"
+      }
+    },
+    {
+      "id": "03_llvm_loop_vec",
+      "tier": 1,
+      "max_turns": 400,
+      "fixture": {
+        "url": "https://github.com/llvm/llvm-project.git",
+        "ref": "bf2a97a0dd2744000d4b39db2d36f150b52924cb",
+        "shallow": true,
+        "build_cmd": "mkdir -p build && cd build && cmake -G Ninja ../llvm -DLLVM_ENABLE_PROJECTS=clang -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_ASSERTIONS=ON && ninja -j$(nproc) opt llc clang"
+      }
+    },
+    {
+      "id": "04_sqlite_cte",
+      "tier": 3,
+      "max_turns": 60,
+      "fixture": {
+        "url": "https://github.com/sqlite/sqlite.git",
+        "ref": "c2aa8e3875907d84540af7624534e326b26b82ee",
+        "shallow": true,
+        "build_cmd": "mkdir -p build && cd build && ../configure --enable-all && make -j$(nproc) sqlite3"
+      }
+    },
+    {
+      "id": "06_django_async",
+      "tier": 2,
+      "max_turns": 100,
+      "fixture": {
+        "url": "https://github.com/django/django.git",
+        "ref": "9a71eca64bd3a357ef4846d81668d690089779c7",
+        "shallow": true,
+        "build_cmd": "python3 -m venv .venv && .venv/bin/pip install -e . && .venv/bin/pip install asgiref sqlparse"
+      }
+    },
+    {
+      "id": "07_react_hooks",
+      "tier": 3,
+      "max_turns": 60,
+      "fixture": {
+        "url": "https://github.com/facebook/react.git",
+        "ref": "ed69815cebae33b0326cc69faa90f813bb924f3b",
+        "shallow": true,
+        "build_cmd": "yarn install --frozen-lockfile"
+      }
+    },
+    {
+      "id": "08_express_async",
+      "tier": 3,
+      "max_turns": 60,
+      "fixture": {
+        "url": "https://github.com/expressjs/express.git",
+        "ref": "4007ad103ba29f6426b2ec9eccfb1ceb792682a8",
+        "shallow": true,
+        "build_cmd": "npm install"
+      }
+    },
+    {
+      "id": "30_lapack",
+      "tier": 2,
+      "max_turns": 100,
+      "fixture": {
+        "url": "https://github.com/Reference-LAPACK/lapack.git",
+        "ref": "f954f62cd18768732e2796a9f5306c064bc1ccde",
+        "shallow": true,
+        "build_cmd": "mkdir -p build && cd build && cmake -G Ninja .. -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release && ninja -j$(nproc)"
+      }
+    },
+    {
+      "id": "32_beast",
+      "tier": 2,
+      "max_turns": 100,
+      "fixture": {
+        "url": "https://github.com/boostorg/boost.git",
+        "ref": "ba00950e465b0c10d5bae001614dfb2ae65598bd",
+        "shallow": true,
+        "submodules": true,
+        "submodule_pins": {
+          "libs/beast": "294ef9443b2d7a2277fec9048022a34f11e840e6"
+        },
+        "build_cmd": "./bootstrap.sh --without-libraries=python && ./b2 headers"
+      }
+    },
+    {
+      "id": "33_geometry",
+      "tier": 2,
+      "max_turns": 100,
+      "fixture": {
+        "url": "https://github.com/boostorg/boost.git",
+        "ref": "ba00950e465b0c10d5bae001614dfb2ae65598bd",
+        "shallow": true,
+        "submodules": true,
+        "submodule_pins": {
+          "libs/geometry": "73cd3b79b03ac01e096c38deb104168128410b07"
+        },
+        "build_cmd": "./bootstrap.sh --without-libraries=python && ./b2 headers"
+      }
+    }
+  ]
+}

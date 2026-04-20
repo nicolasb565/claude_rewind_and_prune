@@ -25,8 +25,13 @@ RUN git config --global user.email "bench@local" \
  && git config --global init.defaultBranch main \
  && git config --global --add safe.directory '*'
 
-COPY entrypoint.sh /entrypoint.sh
+COPY benchmarks/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# Bookmark MCP server (agent-managed memory probe).
+# Stdio JSON-RPC, zero npm deps. Activated only when ENABLE_BOOKMARKS=1.
+COPY mcp /opt/mcp
+RUN chmod +r /opt/mcp/*.mjs
 
 # /scratch is the per-run writable copy of the fixture. Make it world-writable
 # (like /tmp) so containers launched with --user <host-uid> can populate it.

@@ -1,7 +1,0 @@
-{
-  "type": "huggingface",
-  "repo": "gutenbergpbc/john-masterclass-cc",
-  "split": "train",
-  "parser": "dataclaw",
-  "description": "Claude Code ML research sessions — Python-heavy"
-}

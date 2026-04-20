@@ -1,6 +1,9 @@
 /**
  * Auto-compact: truncate stale Bash tool outputs in the messages array.
  * Only Bash outputs are compacted — Read/Edit/Write/Grep/Glob are never touched.
+ *
+ * Idempotent: compacted blocks carry a `[COMPACTED` prefix so repeated
+ * calls (each request re-sends full history) skip already-compacted blocks.
  */
 
 const defaults = {
@@ -9,9 +12,6 @@ const defaults = {
   keepLast: 10,
   minLines: 50,
 }
-
-// Track tool_use_ids we've already compacted — never re-process
-const compactedIds = new Set()
 
 export function getConfig() {
   return {
@@ -59,10 +59,7 @@ export function compact(messages, log) {
       const name = toolNames.get(block.tool_use_id) || ''
       if (name !== 'Bash') return block
 
-      // Already compacted this ID in a previous request
-      if (compactedIds.has(block.tool_use_id)) return block
-
-      // Check if already compacted — handle all possible content shapes
+      // Check if already compacted — handle all possible content shapes.
       // Claude Code may re-wrap our string content as [{type:"text", text:"..."}]
       const rawContent = block.content
       if (typeof rawContent === 'string' && rawContent.startsWith('[COMPACTED')) return block
@@ -98,7 +95,6 @@ export function compact(messages, log) {
 
       if (savedChars <= 0) return block
 
-      compactedIds.add(block.tool_use_id)
       modified = true
       compactCount++
       totalSaved += Math.round(savedChars / 4)

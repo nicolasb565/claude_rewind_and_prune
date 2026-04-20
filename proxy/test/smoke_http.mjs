@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 /**
- * End-to-end HTTP smoke test for the LR proxy.
+ * End-to-end HTTP smoke test for the context-hygiene proxy.
  *
  * Spins up:
  *   - a fake upstream server that always returns a canned 200
- *   - the real proxy with PROXY_UPSTREAM pointed at the fake
- * Then sends a synthetic /v1/messages POST containing a tiny tool-call
- * history and checks:
- *   - the proxy returned 200
- *   - the proxy logged an lr_score event
- *   - the proxy did NOT crash on the LR + filter + nudge wiring
+ *   - the real proxy with PROXY_UPSTREAM pointed at the fake and
+ *     COMPACT_ENABLED=1
+ * Then sends a /v1/messages POST with a stale 200-line Bash tool_result
+ * and checks that the proxy:
+ *   - returns the canned 200
+ *   - truncates the stale Bash block before forwarding upstream
+ *   - emits a `compact` event to LOG_DIR
  *
- * Exits non-zero on any failure; intended to be run via:
- *   node proxy/test/smoke_http.mjs
+ * Exits non-zero on failure. Run via: node proxy/test/smoke_http.mjs
  */
 import { createServer } from 'node:http'
 import { spawn } from 'node:child_process'
@@ -34,7 +34,7 @@ function fail(msg) {
 }
 
 async function main() {
-  // ── Fake upstream that returns a canned 200 ───────────────────────────
+  // ── Fake upstream ─────────────────────────────────────────────────────
   const upstreamReceived = []
   fakeUpstream = createServer((req, res) => {
     const chunks = []
@@ -52,27 +52,35 @@ async function main() {
         role: 'assistant',
         content: [{ type: 'text', text: 'hello' }],
         stop_reason: 'end_turn',
+        usage: {
+          input_tokens: 42,
+          cache_creation_input_tokens: 10,
+          cache_read_input_tokens: 500,
+          output_tokens: 5,
+        },
       }))
     })
   })
   await new Promise((r) => fakeUpstream.listen(0, '127.0.0.1', r))
   const upstreamPort = fakeUpstream.address().port
 
-  // ── Spawn the proxy with PROXY_UPSTREAM = fake ────────────────────────
+  // ── Proxy with both primitives on ─────────────────────────────────────
+  const LOG_DIR = '/tmp/compact_proxy_smoke_logs'
   proxy = spawn('node', ['proxy/proxy.mjs'], {
     cwd: REPO,
     env: {
       ...process.env,
-      PROXY_PORT: '0', // 0 means assign random port
+      PROXY_PORT: '0',
       PROXY_UPSTREAM: `http://127.0.0.1:${upstreamPort}`,
-      LOG_DIR: '/tmp/lr_proxy_smoke_logs',
-      STUCK_ENABLED: '1',
+      LOG_DIR,
+      COMPACT_ENABLED: '1',
+      INJECT_CLEAR_TOOL_USES: '1',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let proxyPort = null
   await new Promise((resolveReady) => {
-    let timer = setTimeout(() => {
+    const timer = setTimeout(() => {
       fail(`proxy did not announce listening port within 5s\nstderr:\n${proxyOut}`)
     }, 5000)
     proxy.stderr.on('data', (chunk) => {
@@ -93,44 +101,34 @@ async function main() {
     })
   })
 
-  // ── Synthetic request body: 5 repeated stuck-shaped tool calls ────────
-  // The repetition will drive the LR signal up so we can verify the
-  // pipeline wiring works (NOT necessarily that the nudge fires — that's
-  // covered by the unit tests).
-  const messages = []
-  for (let i = 0; i < 6; i++) {
-    messages.push({
+  // ── Synthetic request: one stale 200-line Bash result + trailing turns ─
+  const bigOutput = Array.from({ length: 200 }, (_, i) => `line ${i}`).join('\n')
+  const messages = [
+    { role: 'user', content: [{ type: 'text', text: 'build the project' }] },
+    {
       role: 'assistant',
-      content: [{
-        type: 'tool_use',
-        id: `tool_${i}`,
-        name: 'Bash',
-        input: { command: 'gcc -O2 -c src/main.c' },
-      }],
-    })
-    messages.push({
+      content: [{ type: 'tool_use', id: 'smoke_1', name: 'Bash', input: { command: 'make' } }],
+    },
+    {
       role: 'user',
       content: [{
         type: 'tool_result',
-        tool_use_id: `tool_${i}`,
-        content: [{
-          type: 'text',
-          text: 'src/main.c:42: error: undefined reference to foo',
-        }],
+        tool_use_id: 'smoke_1',
+        content: [{ type: 'text', text: bigOutput }],
       }],
-    })
-  }
-  // Add a final user-text turn so the request looks like a real Claude
-  // Code request shape
-  messages.unshift({ role: 'user', content: [{ type: 'text', text: 'fix the build' }] })
-
+    },
+    // Two trailing turns push the bash turn past the default staleTurns=2
+    { role: 'assistant', content: [{ type: 'text', text: 'looking at output' }] },
+    { role: 'user', content: [{ type: 'text', text: 'continue' }] },
+    { role: 'assistant', content: [{ type: 'text', text: 'next step' }] },
+    { role: 'user', content: [{ type: 'text', text: 'keep going' }] },
+  ]
   const body = JSON.stringify({
     model: 'claude-sonnet-4-6',
     max_tokens: 1024,
     messages,
   })
 
-  // ── Send the request to the proxy ─────────────────────────────────────
   const res = await fetch(`http://127.0.0.1:${proxyPort}/v1/messages`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -138,55 +136,76 @@ async function main() {
   })
   if (res.status !== 200) fail(`proxy returned status ${res.status}`)
   const respBody = await res.text()
-  if (!respBody.includes('msg_smoke')) {
-    fail(`response did not include canned upstream payload, got: ${respBody}`)
-  }
+  if (!respBody.includes('msg_smoke')) fail(`response missing canned payload: ${respBody}`)
 
-  // ── Verify upstream got the (possibly nudge-augmented) request ────────
+  // ── Verify upstream received the compacted body ───────────────────────
   if (upstreamReceived.length !== 1) {
     fail(`expected exactly 1 upstream request, got ${upstreamReceived.length}`)
   }
   const fwd = JSON.parse(upstreamReceived[0].body)
   if (!Array.isArray(fwd.messages)) fail('forwarded body has no messages array')
-  // The proxy MAY have appended a nudge user message — accept ≥ original.
-  if (fwd.messages.length < messages.length) {
-    fail(`forwarded ${fwd.messages.length} messages, expected ≥ ${messages.length}`)
+  const toolResult = fwd.messages
+    .flatMap((m) => (Array.isArray(m.content) ? m.content : []))
+    .find((b) => b?.type === 'tool_result')
+  if (!toolResult) fail('forwarded body has no tool_result block')
+  const text = typeof toolResult.content === 'string'
+    ? toolResult.content
+    : toolResult.content?.[0]?.text ?? ''
+  if (!text.startsWith('[COMPACTED')) {
+    fail(`tool_result was not compacted: ${text.slice(0, 80)}`)
+  }
+  if (text.length >= bigOutput.length) {
+    fail(`compacted body not smaller (orig=${bigOutput.length} got=${text.length})`)
   }
 
-  // ── Verify proxy logged an lr_score event for this request ────────────
-  // Wait briefly for the log to flush
+  // ── Verify clear_tool_uses strategy was injected ──────────────────────
+  const edits = fwd?.context_management?.edits ?? []
+  const tu = edits.find((e) => e?.type === 'clear_tool_uses_20250919')
+  if (!tu) fail(`clear_tool_uses strategy not injected; edits=${JSON.stringify(edits)}`)
+  if (!Array.isArray(tu.exclude_tools) || !tu.exclude_tools.includes('Read')) {
+    fail(`injected edit missing Read exclusion: ${JSON.stringify(tu)}`)
+  }
+
+  // ── Verify proxy logged a compact event ───────────────────────────────
   await new Promise((r) => setTimeout(r, 200))
   const fs = await import('node:fs/promises')
-  const logEntries = await fs.readdir('/tmp/lr_proxy_smoke_logs').catch(() => [])
+  const logEntries = await fs.readdir(LOG_DIR).catch(() => [])
   const evFile = logEntries.find((f) => f.startsWith('events-'))
-  if (!evFile) fail(`no events log under /tmp/lr_proxy_smoke_logs (found: ${logEntries.join(',')})`)
-  const log = await fs.readFile(`/tmp/lr_proxy_smoke_logs/${evFile}`, 'utf8')
-  const lines = log.split('\n').filter(Boolean)
+  if (!evFile) fail(`no events log under ${LOG_DIR} (found: ${logEntries.join(',')})`)
+  const log = await fs.readFile(`${LOG_DIR}/${evFile}`, 'utf8')
   const types = new Set()
-  let lastLrScore = null
-  for (const line of lines) {
+  let compactEv = null
+  let cacheStatsEv = null
+  let injectEv = null
+  for (const line of log.split('\n').filter(Boolean)) {
     try {
       const ev = JSON.parse(line)
       types.add(ev.type)
-      if (ev.type === 'lr_score') lastLrScore = ev
-    } catch {
-      // ignore malformed lines
-    }
+      if (ev.type === 'compact') compactEv = ev
+      if (ev.type === 'cache_stats') cacheStatsEv = ev
+      if (ev.type === 'inject_clear_tool_uses') injectEv = ev
+    } catch { /* ignore */ }
   }
   if (!types.has('proxy_start')) fail('no proxy_start log entry')
-  if (!types.has('lr_score')) fail(`no lr_score log entry (saw types: ${[...types].join(',')})`)
-  if (lastLrScore.score == null) fail(`lr_score has no score field: ${JSON.stringify(lastLrScore)}`)
-  if (lastLrScore.score < 0 || lastLrScore.score > 1) {
-    fail(`lr_score out of [0,1]: ${lastLrScore.score}`)
+  if (!types.has('compact')) fail(`no compact log entry (types: ${[...types].join(',')})`)
+  if (compactEv.originalLines !== 200) {
+    fail(`compact event originalLines=${compactEv.originalLines}, expected 200`)
+  }
+  if (!cacheStatsEv) fail(`no cache_stats log entry (types: ${[...types].join(',')})`)
+  if (cacheStatsEv.input_tokens !== 42) fail(`cache_stats.input_tokens=${cacheStatsEv.input_tokens}, expected 42`)
+  if (cacheStatsEv.cache_read_input_tokens !== 500) {
+    fail(`cache_stats.cache_read_input_tokens=${cacheStatsEv.cache_read_input_tokens}, expected 500`)
+  }
+  if (!injectEv) fail(`no inject_clear_tool_uses log entry`)
+  if (injectEv.edit_count_after !== injectEv.edit_count_before + 1) {
+    fail(`inject event should add exactly 1 edit, got ${injectEv.edit_count_after - injectEv.edit_count_before}`)
   }
 
   console.log('SMOKE PASS')
   console.log(`  proxy port: ${proxyPort}`)
-  console.log(`  upstream received: 1 request, forwarded ${fwd.messages.length} messages`)
+  console.log(`  upstream forwarded ${fwd.messages.length} messages`)
+  console.log(`  tool_result: ${bigOutput.length} → ${text.length} chars`)
   console.log(`  log types: ${[...types].sort().join(', ')}`)
-  console.log(`  last lr_score: score=${lastLrScore.score} `
-    + `medium=${lastLrScore.medium} hard=${lastLrScore.hard}`)
-  console.log(`  filter aggregates: med4=${lastLrScore.med4} med9=${lastLrScore.med9}`)
 
   proxy.kill()
   fakeUpstream.close()

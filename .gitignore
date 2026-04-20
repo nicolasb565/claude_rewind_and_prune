@@ -32,3 +32,4 @@ proxy/experiments/
 benchmarks/fixtures/
 benchmarks/results/
 benchmarks/.env
+.triton_cache/

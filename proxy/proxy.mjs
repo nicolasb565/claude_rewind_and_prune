@@ -1,47 +1,37 @@
 #!/usr/bin/env node
 /**
- * LR + two-tier filter proxy for Claude Code.
+ * HTTP proxy for Claude Code context hygiene experiments.
  *
- * Intercepts Anthropic API requests, scores each tool call through the
- * LR stuck detector + two-tier filter (medium/hard), and injects a
- * corrective nudge when the state machine advances a tier. No modifications
- * to Claude Code required.
+ * Intercepts Anthropic API requests and either rewrites `messages[]`
+ * client-side or injects a native `context_management` strategy so the
+ * API can clear history on its side. No modifications to Claude Code.
  *
  * Usage:
  *   node proxy/proxy.mjs &
  *   ANTHROPIC_BASE_URL=http://localhost:8080 claude "your prompt"
  *
  * Environment:
- *   PROXY_PORT         listen port (default: 8080)
- *   PROXY_UPSTREAM     upstream API (default: https://api.anthropic.com)
- *   STUCK_ENABLED      enable stuck detection (default: 1)
- *   COMPACT_ENABLED    enable Bash output compaction (default: 0)
+ *   PROXY_PORT                listen port (default: 8080)
+ *   PROXY_UPSTREAM            upstream API (default: https://api.anthropic.com)
+ *   COMPACT_ENABLED           client-side Bash tool_result truncation (default: 0)
+ *   INJECT_CLEAR_TOOL_USES    inject clear_tool_uses_20250919 into requests (default: 0)
+ *   REWIND_ENABLED            apply agent-initiated summarize_and_forget elisions
+ *                             on outgoing requests (default: 0)
  */
 
 import { createServer } from 'node:http'
-import { readFileSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { loadLR } from './lr.mjs'
-import { LRSessionDetector } from './lr_detector.mjs'
-import { TieredNudgeController, DEFAULT_TIERED_CONFIG } from './tiered_filter.mjs'
-import {
-  extractAllToolCalls,
-  extractLastTurnToolCalls,
-  getSessionKey,
-  recentToolSummary,
-} from './messages.mjs'
 import { log, logRequest } from './log.mjs'
 import { fetchUpstream, getStats } from './upstream.mjs'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
+import { extractUsage } from './usage.mjs'
+import { summarizeRequest } from './introspect.mjs'
+import { injectClearToolUses, getConfig as getInjectConfig } from './inject.mjs'
+import { applyRewind } from './rewind.mjs'
 
 const PORT = parseInt(process.env.PROXY_PORT || '8080', 10)
 const UPSTREAM = process.env.PROXY_UPSTREAM || 'https://api.anthropic.com'
 const COMPACT_ENABLED = process.env.COMPACT_ENABLED === '1'
-const STUCK_ENABLED = process.env.STUCK_ENABLED !== '0'
-
-const lr = loadLR(resolve(__dirname, 'lr_weights.json'))
+const INJECT_CLEAR_TOOL_USES = process.env.INJECT_CLEAR_TOOL_USES === '1'
+const REWIND_ENABLED = process.env.REWIND_ENABLED === '1'
 
 let compact = null
 if (COMPACT_ENABLED) {
@@ -53,98 +43,11 @@ log('proxy_start', {
   port: PORT,
   upstream: UPSTREAM,
   compactEnabled: COMPACT_ENABLED,
-  stuckEnabled: STUCK_ENABLED,
-  classifier: 'lr_content_v1',
-  filterTiers: DEFAULT_TIERED_CONFIG,
+  injectClearToolUses: INJECT_CLEAR_TOOL_USES,
+  injectConfig: INJECT_CLEAR_TOOL_USES ? getInjectConfig() : null,
+  rewindEnabled: REWIND_ENABLED,
   ...getStats(),
 })
-
-// ── Session state ──────────────────────────────────────────────────────────────
-
-/** Map<sessionKey, { detector, nudge, turnCounter, initialized }> */
-const sessions = new Map()
-
-function getSession(key) {
-  if (!sessions.has(key)) {
-    sessions.set(key, {
-      detector: new LRSessionDetector(lr),
-      nudge: new TieredNudgeController(),
-      turnCounter: 0,
-      initialized: false,
-    })
-  }
-  return sessions.get(key)
-}
-
-// ── Core detection logic ───────────────────────────────────────────────────────
-
-function pruneIfStuck(messages) {
-  const key = getSessionKey(messages)
-  // Short, stable digest of the session key for log attribution.
-  // Full 200-char key is too noisy to read; first 64 chars is enough to
-  // uniquely identify a benchmark task and match it to tasks/<id>/task.md.
-  const sessionKeyPrefix = key.slice(0, 64)
-  const session = getSession(key)
-  session.turnCounter++
-
-  const prevInitialized = session.initialized
-  const toolCalls = session.initialized
-    ? extractLastTurnToolCalls(messages)
-    : extractAllToolCalls(messages)
-  session.initialized = true
-
-  // Text-only turns produce no tool calls. Preserve detector + nudge state
-  // across them — a turn with no actions is neither stuck nor productive
-  // signal, just absence of evidence.
-  if (toolCalls.length === 0) return messages
-
-  let lastResult = null
-  try {
-    for (const tc of toolCalls) {
-      lastResult = session.detector.addStep(tc.toolName, tc.input, tc.output)
-    }
-  } catch (e) {
-    // Rebuild BOTH detector and nudge so partial state can't corrupt
-    // future calls. Restore `initialized` so the next call re-scans the
-    // full message history into the new detector.
-    session.initialized = prevInitialized
-    session.detector = new LRSessionDetector(lr)
-    session.nudge = new TieredNudgeController()
-    throw e
-  }
-
-  const { score: lastScore, filters, aggregates } = lastResult
-
-  log('lr_score', {
-    sessionKeyPrefix,
-    turn: session.turnCounter,
-    score: +lastScore.toFixed(4),
-    medium: filters.medium,
-    hard: filters.hard,
-    med4: aggregates.medium != null ? +aggregates.medium.toFixed(4) : null,
-    med9: aggregates.hard != null ? +aggregates.hard.toFixed(4) : null,
-  })
-
-  const recentTools = recentToolSummary(messages)
-  const { fire, level, text } = session.nudge.update(
-    filters, lastScore, session.turnCounter, recentTools,
-  )
-
-  if (!fire) return messages
-
-  log('nudge_injected', {
-    sessionKeyPrefix,
-    turn: session.turnCounter,
-    score: +lastScore.toFixed(4),
-    nudgeLevel: level,
-    tier: ['medium', 'hard'][level],
-    recentTools: recentTools.slice(-5),
-  })
-
-  return [...messages, { role: 'user', content: [{ type: 'text', text }] }]
-}
-
-// ── HTTP server ────────────────────────────────────────────────────────────────
 
 const server = createServer(async (req, res) => {
   const chunks = []
@@ -164,12 +67,42 @@ const server = createServer(async (req, res) => {
       const parsed = JSON.parse(body.toString())
       const originalCount = parsed.messages?.length ?? 0
 
+      const summary = summarizeRequest({ body: parsed, headers: req.headers })
+      summary.body_size_chars = body.length
+      log('request_summary', { url: req.url, ...summary })
+
+      if (REWIND_ENABLED && Array.isArray(parsed.messages)) {
+        const { messages: rewritten, elisions } = applyRewind(parsed.messages)
+        if (elisions.length > 0) {
+          parsed.messages = rewritten
+          for (const e of elisions) {
+            log('rewind_applied', {
+              url: req.url,
+              anchorIdx: e.anchorIdx,
+              turnsElided: e.turnsElided,
+              bytesSaved: e.bytesSaved,
+              summary: e.summary,
+            })
+          }
+        }
+      }
+
       if (COMPACT_ENABLED && compact && Array.isArray(parsed.messages)) {
         parsed.messages = compact(parsed.messages, log)
       }
 
-      if (STUCK_ENABLED && Array.isArray(parsed.messages)) {
-        parsed.messages = pruneIfStuck(parsed.messages)
+      if (INJECT_CLEAR_TOOL_USES) {
+        const beforeLen = Array.isArray(parsed.context_management?.edits)
+          ? parsed.context_management.edits.length : 0
+        injectClearToolUses(parsed)
+        const afterLen = parsed.context_management.edits.length
+        if (afterLen > beforeLen) {
+          log('inject_clear_tool_uses', {
+            url: req.url,
+            edit_count_before: beforeLen,
+            edit_count_after: afterLen,
+          })
+        }
       }
 
       body = Buffer.from(JSON.stringify(parsed))
@@ -212,16 +145,40 @@ const server = createServer(async (req, res) => {
 
     if (upstreamRes.body) {
       const reader = upstreamRes.body.getReader()
+      // Tee up to 32 KB into a buffer so we can parse the Anthropic
+      // usage block (it always lives in the first SSE event or at the
+      // root of a non-streaming response). Beyond that we pass through
+      // without copying.
+      const teeLimit = 32 * 1024
+      let teeBuf = ''
+      const decoder = new TextDecoder('utf-8', { fatal: false })
       try {
         for (;;) {
           const { done, value } = await reader.read()
           if (done) break
           res.write(value)
+          if (teeBuf.length < teeLimit) {
+            teeBuf += decoder.decode(value, { stream: true })
+            if (teeBuf.length > teeLimit) teeBuf = teeBuf.slice(0, teeLimit)
+          }
         }
       } catch (e) {
         log('stream_error', { error: e.message })
       } finally {
         reader.releaseLock()
+      }
+
+      if (isMessages) {
+        const usage = extractUsage(teeBuf)
+        if (usage) {
+          log('cache_stats', {
+            url: req.url,
+            input_tokens: usage.input_tokens ?? null,
+            cache_creation_input_tokens: usage.cache_creation_input_tokens ?? null,
+            cache_read_input_tokens: usage.cache_read_input_tokens ?? null,
+            output_tokens: usage.output_tokens ?? null,
+          })
+        }
       }
     }
 
@@ -236,10 +193,5 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, () => {
   const actualPort = server.address().port
   log('proxy_listening', { port: actualPort })
-  const t = DEFAULT_TIERED_CONFIG
-  process.stderr.write(
-    `[proxy] Listening on :${actualPort} — LR + 2-tier `
-    + `(medium=${t.medium.kind}${t.medium.n}@${t.medium.threshold} `
-    + `hard=${t.hard.kind}${t.hard.n}@${t.hard.threshold})\n`,
-  )
+  process.stderr.write(`[proxy] Listening on :${actualPort}\n`)
 })

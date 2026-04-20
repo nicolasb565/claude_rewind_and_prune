@@ -112,6 +112,54 @@ case "$MODE" in
     PROMPT=$(cat "/tasks/$TASK_ID/task.md")
     START=$(date +%s)
 
+    # ── Optional: bookmark MCP server (agent-memory probe) ────────────
+    # When ENABLE_BOOKMARKS=1, drop a .mcp.json in cwd referencing the
+    # server baked into the image and extend the allowedTools whitelist.
+    # Without both, Claude Code won't discover or invoke the tools.
+    ALLOWED_TOOLS="Bash,Edit,Write,Read,Grep,Glob"
+    if [ "${ENABLE_BOOKMARKS:-0}" = "1" ]; then
+      # Per-run-idx dir so concurrent runs on the same task_id don't
+      # interleave their bookmark logs in the same file.
+      BM_DIR="/output/bookmark_logs${RUN_SUFFIX}"
+      mkdir -p "$BM_DIR"
+      cat >/scratch/.mcp.json <<MCP_JSON
+{
+  "mcpServers": {
+    "bookmarks": {
+      "command": "node",
+      "args": ["/opt/mcp/bookmark_server.mjs"],
+      "env": { "BOOKMARK_LOG_DIR": "$BM_DIR" }
+    }
+  }
+}
+MCP_JSON
+      ALLOWED_TOOLS="$ALLOWED_TOOLS,mcp__bookmarks__bookmark_mark,mcp__bookmarks__bookmark_recall,mcp__bookmarks__bookmark_list"
+      echo "run[$TASK_ID]: bookmark MCP enabled (log: $BM_DIR)"
+    fi
+    if [ "${ENABLE_REWIND:-0}" = "1" ]; then
+      ALLOWED_TOOLS="$ALLOWED_TOOLS,mcp__bookmarks__checkpoint_progress"
+      echo "run[$TASK_ID]: checkpoint_progress enabled"
+    fi
+
+    # Optional prompt hint — tests whether the agent uses the rewind
+    # tool when told to vs when it has to discover it on its own.
+    if [ "${REWIND_HINT:-0}" = "1" ]; then
+      PROMPT="$PROMPT
+
+[You have \`mcp__bookmarks__checkpoint_progress\` available. Call it ONLY
+when you have concrete evidence of progress — either:
+(a) milestone_achieved: a specific, observable event like 'bug reproduces
+at file:line', 'test that was failing now passes', 'build now succeeds'.
+(b) approach_eliminated: a specific hypothesis was ruled out by a specific
+observation, e.g. 'applied patch X, bug still reproduces with same output'.
+
+Do NOT checkpoint when you're still exploring and unsure. A checkpoint
+that says 'I don't see a bug' or 'code looks correct' is worse than no
+checkpoint — it entrenches a wrong conclusion in the compressed history.
+If you cannot cite a specific tool output, test result, or build log as
+evidence, keep exploring.]"
+    fi
+
     if [ "$MODE" = "run" ]; then
       # --output-format stream-json streams one JSON event per line
       # (system init, user, assistant with tool_use/tool_result blocks,
@@ -121,7 +169,7 @@ case "$MODE" in
       claude --dangerously-skip-permissions -p "$PROMPT" \
         --model "$MODEL" \
         --max-turns "$MAX_TURNS" \
-        --allowedTools "Bash,Edit,Write,Read,Grep,Glob" \
+        --allowedTools "$ALLOWED_TOOLS" \
         --output-format stream-json \
         --verbose \
         >"$TRANSCRIPT" 2>"$STDERR"

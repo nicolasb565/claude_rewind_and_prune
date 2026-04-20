@@ -6,7 +6,12 @@
 #
 # Options:
 #   --runs N               repeat each task N times (default 1)
-#   --proxy on|off         start the stuck-detector proxy (default off)
+#   --proxy on|off|bare    on = proxy injects clear_tool_uses_20250919
+#                                (INJECT_CLEAR_TOOL_USES=1, COMPACT_ENABLED=0);
+#                          off = proxy observes only (both disabled) — the
+#                                cache_stats baseline;
+#                          bare = no proxy at all.
+#                          Default: off.
 #   --auth subscription|env
 #                          credential source (default subscription).
 #                          subscription: mounts ~/.claude/.credentials.json
@@ -15,6 +20,15 @@
 #   --concurrency N        max parallel containers (default 6)
 #   --mode run|surrogate   run = real claude -p; surrogate = plumbing-only
 #                          (default run)
+#   --bookmarks on|off     expose the bookmark MCP server to the agent
+#                          (default off). Activates mark/recall/list tools.
+#   --rewind on|off        enable summarize_and_forget: MCP tool + proxy
+#                          elision on outgoing requests (default off).
+#                          Implies --bookmarks on (same MCP server hosts it).
+#   --rewind-hint on|off   append a prompt hint telling the agent to use
+#                          summarize_and_forget on dead-ends (default off).
+#                          Answers "does it help when told to?" vs
+#                          "does it find the tool itself?".
 #   --run-id NAME          label results dir (default auto-increment run_NNN)
 
 set -euo pipefail
@@ -34,34 +48,56 @@ TASK_FILTER=""
 CONCURRENCY=6
 MODE="run"
 RUN_ID=""
+BOOKMARKS="off"
+REWIND="off"
+REWIND_HINT="off"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --runs)        RUNS="$2"; shift 2 ;;
-    --proxy)       PROXY="$2"; shift 2 ;;
-    --auth)        AUTH="$2"; shift 2 ;;
-    --tasks)       TASK_FILTER="$2"; shift 2 ;;
-    --concurrency) CONCURRENCY="$2"; shift 2 ;;
-    --mode)        MODE="$2"; shift 2 ;;
-    --run-id)      RUN_ID="$2"; shift 2 ;;
-    --manifest)    MANIFEST="$2"; shift 2 ;;
-    -h|--help)     sed -n '2,22p' "$0"; exit 0 ;;
+    --runs)         RUNS="$2"; shift 2 ;;
+    --proxy)        PROXY="$2"; shift 2 ;;
+    --auth)         AUTH="$2"; shift 2 ;;
+    --tasks)        TASK_FILTER="$2"; shift 2 ;;
+    --concurrency)  CONCURRENCY="$2"; shift 2 ;;
+    --mode)         MODE="$2"; shift 2 ;;
+    --bookmarks)    BOOKMARKS="$2"; shift 2 ;;
+    --rewind)       REWIND="$2"; shift 2 ;;
+    --rewind-hint)  REWIND_HINT="$2"; shift 2 ;;
+    --run-id)       RUN_ID="$2"; shift 2 ;;
+    --manifest)     MANIFEST="$2"; shift 2 ;;
+    -h|--help)      sed -n '2,30p' "$0"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 1 ;;
   esac
 done
+
+# --rewind requires the proxy to be able to mutate outgoing requests AND
+# the bookmarks MCP server to expose the tool.
+if [ "$REWIND" = "on" ]; then
+  BOOKMARKS="on"
+fi
 
 # Resolve manifest to absolute path so docker mount works regardless of cwd
 [[ -f "$MANIFEST" ]] || { echo "--manifest not found: $MANIFEST"; exit 1; }
 MANIFEST="$(cd "$(dirname "$MANIFEST")" && pwd)/$(basename "$MANIFEST")"
 
-[[ "$PROXY" == "on" || "$PROXY" == "off" ]] || { echo "--proxy must be on|off"; exit 1; }
+[[ "$PROXY" == "on" || "$PROXY" == "off" || "$PROXY" == "bare" ]] \
+  || { echo "--proxy must be on|off|bare"; exit 1; }
+[[ "$BOOKMARKS" == "on" || "$BOOKMARKS" == "off" ]] \
+  || { echo "--bookmarks must be on|off"; exit 1; }
+[[ "$REWIND" == "on" || "$REWIND" == "off" ]] \
+  || { echo "--rewind must be on|off"; exit 1; }
+[[ "$REWIND_HINT" == "on" || "$REWIND_HINT" == "off" ]] \
+  || { echo "--rewind-hint must be on|off"; exit 1; }
+if [ "$REWIND" = "on" ] && [ "$PROXY" = "bare" ]; then
+  echo "--rewind=on is incompatible with --proxy=bare (rewind requires the proxy)"; exit 1
+fi
 [[ "$AUTH" == "subscription" || "$AUTH" == "env" ]] || { echo "--auth must be subscription|env"; exit 1; }
 [[ "$MODE" == "run" || "$MODE" == "surrogate" ]] || { echo "--mode must be run|surrogate"; exit 1; }
 
 command -v docker >/dev/null || { echo "docker not found"; exit 1; }
 command -v jq >/dev/null     || { echo "jq not found";     exit 1; }
 docker image inspect "$IMAGE" >/dev/null 2>&1 || {
-  echo "image $IMAGE not found — run: docker build -t $IMAGE $SCRIPT_DIR"; exit 1; }
+  echo "image $IMAGE not found — run: docker build -t $IMAGE -f $SCRIPT_DIR/Dockerfile $REPO_DIR"; exit 1; }
 
 # ── Run ID ─────────────────────────────────────────────────────────────────
 mkdir -p "$RESULTS_DIR"
@@ -78,7 +114,7 @@ cp "$MANIFEST" "$RUN_DIR/manifest_snapshot.json"
 LOG="$RUN_DIR/run.log"
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$LOG"; }
 
-log "run_id=$RUN_ID proxy=$PROXY auth=$AUTH mode=$MODE runs=$RUNS concurrency=$CONCURRENCY"
+log "run_id=$RUN_ID proxy=$PROXY bookmarks=$BOOKMARKS rewind=$REWIND rewind_hint=$REWIND_HINT auth=$AUTH mode=$MODE runs=$RUNS concurrency=$CONCURRENCY"
 
 # ── Auth mount ─────────────────────────────────────────────────────────────
 AUTH_MOUNTS=()
@@ -102,6 +138,11 @@ esac
 PROXY_PID=""
 PROXY_LOG_DIR="$RUN_DIR/proxy_logs"
 start_proxy() {
+  # Args: <compact_enabled> <inject_clear_tool_uses> <rewind_enabled>
+  # Whichever primitives are turned on for this run.
+  local compact="${1:-0}"
+  local inject="${2:-0}"
+  local rewind="${3:-0}"
   [ -f "$PROXY_SCRIPT" ] || { log "ERROR: $PROXY_SCRIPT not found"; exit 1; }
   # Kill anything already on :8080
   if command -v lsof >/dev/null && lsof -ti :8080 >/dev/null 2>&1; then
@@ -110,11 +151,13 @@ start_proxy() {
     sleep 1
   fi
   mkdir -p "$PROXY_LOG_DIR"
-  log "starting proxy (LOG_DIR=$PROXY_LOG_DIR)"
-  # LOG_DIR isolates this run's proxy events from the global
-  # ~/.stuck-detector/logs/ stream, so each comparison lands cleanly
-  # in its own results/run_NNN/proxy_logs/events-YYYY-MM-DD.jsonl.
+  log "starting proxy (COMPACT_ENABLED=$compact INJECT_CLEAR_TOOL_USES=$inject REWIND_ENABLED=$rewind LOG_DIR=$PROXY_LOG_DIR)"
+  # The proxy always emits `cache_stats` parsed from upstream responses
+  # and `request_summary` per outgoing request — that is the A/B
+  # baseline regardless of which hygiene primitives are active.
   ( cd "$REPO_DIR" && LOG_DIR="$PROXY_LOG_DIR" \
+      COMPACT_ENABLED="$compact" INJECT_CLEAR_TOOL_USES="$inject" \
+      REWIND_ENABLED="$rewind" \
       node "$PROXY_SCRIPT" >"$RUN_DIR/proxy.log" 2>&1 ) &
   PROXY_PID=$!
   sleep 2
@@ -130,9 +173,15 @@ stop_proxy() {
 }
 trap stop_proxy EXIT
 
-if [ "$PROXY" = "on" ]; then
-  start_proxy
-fi
+case "$PROXY" in
+  # on  = proxy observes + injects clear_tool_uses (native API clearing).
+  # off = proxy observes only (cache_stats baseline).
+  # bare = no proxy at all.
+  # Rewind is orthogonal and is enabled independently via --rewind.
+  on)   start_proxy 0 1 $([ "$REWIND" = "on" ] && echo 1 || echo 0) ;;
+  off)  start_proxy 0 0 $([ "$REWIND" = "on" ] && echo 1 || echo 0) ;;
+  bare) ;;
+esac
 
 # ── Task list ──────────────────────────────────────────────────────────────
 if [ -n "$TASK_FILTER" ]; then
@@ -162,15 +211,31 @@ launch_one() {
 
   local CONTAINER="bench_${RUN_ID}_${TASK_ID}${SUFFIX}"
   local PROXY_ENV=()
-  if [ "$PROXY" = "on" ]; then
+  if [ "$PROXY" = "on" ] || [ "$PROXY" = "off" ]; then
     PROXY_ENV+=(-e "ANTHROPIC_BASE_URL=http://localhost:8080")
+  fi
+  if [ "$BOOKMARKS" = "on" ]; then
+    PROXY_ENV+=(-e "ENABLE_BOOKMARKS=1")
+  fi
+  if [ "$REWIND" = "on" ]; then
+    PROXY_ENV+=(-e "ENABLE_REWIND=1")
+  fi
+  if [ "$REWIND_HINT" = "on" ]; then
+    PROXY_ENV+=(-e "REWIND_HINT=1")
   fi
 
   log "$TASK_ID${SUFFIX}: launching"
+  # --memory caps each container so a runaway build can't OOM the host.
+  # Override via BENCH_MEM_LIMIT env; unset means no cap.
+  local mem_args=()
+  if [ -n "${BENCH_MEM_LIMIT:-}" ]; then
+    mem_args=(--memory "$BENCH_MEM_LIMIT" --memory-swap "$BENCH_MEM_LIMIT")
+  fi
   docker run --rm \
     --name "$CONTAINER" \
     --network host \
     --user "$(id -u):$(id -g)" \
+    "${mem_args[@]}" \
     -e HOME=/tmp \
     -e "RUN_SUFFIX=$SUFFIX" \
     "${PROXY_ENV[@]}" \
