@@ -17,6 +17,9 @@
  *   INJECT_CLEAR_TOOL_USES    inject clear_tool_uses_20250919 into requests (default: 0)
  *   REWIND_ENABLED            apply agent-initiated summarize_and_forget elisions
  *                             on outgoing requests (default: 0)
+ *   SHADOW_ENABLED            fire a parallel shadow call (SHADOW_MODEL) on each
+ *                             /v1/messages, rewind on YES (default: 0).
+ *                             See proxy/shadow.mjs for additional knobs.
  */
 
 import { createServer } from 'node:http'
@@ -26,12 +29,14 @@ import { extractUsage } from './usage.mjs'
 import { summarizeRequest } from './introspect.mjs'
 import { injectClearToolUses, getConfig as getInjectConfig } from './inject.mjs'
 import { applyRewind } from './rewind.mjs'
+import { shadowAndMaybeRewind, getShadowStats } from './shadow.mjs'
 
 const PORT = parseInt(process.env.PROXY_PORT || '8080', 10)
 const UPSTREAM = process.env.PROXY_UPSTREAM || 'https://api.anthropic.com'
 const COMPACT_ENABLED = process.env.COMPACT_ENABLED === '1'
 const INJECT_CLEAR_TOOL_USES = process.env.INJECT_CLEAR_TOOL_USES === '1'
 const REWIND_ENABLED = process.env.REWIND_ENABLED === '1'
+const SHADOW_ENABLED = process.env.SHADOW_ENABLED === '1'
 
 let compact = null
 if (COMPACT_ENABLED) {
@@ -46,6 +51,8 @@ log('proxy_start', {
   injectClearToolUses: INJECT_CLEAR_TOOL_USES,
   injectConfig: INJECT_CLEAR_TOOL_USES ? getInjectConfig() : null,
   rewindEnabled: REWIND_ENABLED,
+  shadowEnabled: SHADOW_ENABLED,
+  shadowConfig: SHADOW_ENABLED ? getShadowStats() : null,
   ...getStats(),
 })
 
@@ -55,8 +62,12 @@ const server = createServer(async (req, res) => {
   let body = Buffer.concat(chunks)
 
   if (req.url === '/stats' && req.method === 'GET') {
+    const payload = {
+      ...getStats(),
+      ...(SHADOW_ENABLED ? { shadow: getShadowStats() } : {}),
+    }
     res.writeHead(200, { 'content-type': 'application/json' })
-    res.end(JSON.stringify(getStats()))
+    res.end(JSON.stringify(payload))
     return
   }
 
@@ -84,6 +95,18 @@ const server = createServer(async (req, res) => {
               summary: e.summary,
             })
           }
+        }
+      }
+
+      if (SHADOW_ENABLED && Array.isArray(parsed.messages)) {
+        const outcome = await shadowAndMaybeRewind({
+          messages: parsed.messages,
+          upstream: UPSTREAM,
+          clientHeaders: req.headers,
+          log,
+        })
+        if (outcome.applied) {
+          parsed.messages = outcome.messages
         }
       }
 

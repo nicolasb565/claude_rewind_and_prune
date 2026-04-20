@@ -46,7 +46,7 @@ On `08_express_async` (real Express 5.2.0 bug), phase-2 **extended the explorati
 ### Usage
 
 ```bash
-# Single session on a fixture (see harness/fixtures/)
+# Local (Qwen 3.5 4B) — single session on a fixture
 FIXTURE=bug_04_trio ACT_ON_SHADOW=1 bash harness/run_shadow_docker.sh
 
 # A/B by flipping ACT_ON_SHADOW
@@ -58,6 +58,32 @@ FIXTURE=08_express_async FIXTURES_DIR=benchmarks/fixtures ACT_ON_SHADOW=1 \
 ```
 
 Per-turn JSONL logs land in `harness/results/shadow/`.
+
+### Proxy integration (frontier models, via Claude Code)
+
+The same architecture runs against the Anthropic API through `proxy/shadow.mjs`. The proxy intercepts every `/v1/messages` request from a client (e.g. Claude Code), fires a parallel shadow call to a cheap model (Haiku) with the SHADOW_QUERY as the system prompt, parses the response, and applies rewind to the agent's outgoing messages on a YES. Prompt caching on the shadow call makes its cost ~10% of a full call.
+
+```bash
+# Launch the proxy with shadow enabled
+SHADOW_ENABLED=1 node proxy/proxy.mjs &
+
+# Point Claude Code at it and pick an agent model for benchmarks
+ANTHROPIC_BASE_URL=http://localhost:8080 ANTHROPIC_MODEL=claude-sonnet-4-6 \
+    claude "your task prompt"
+```
+
+Shadow-specific env vars (see `proxy/shadow.mjs` for the full list):
+
+| Variable | Default | Description |
+|---|---|---|
+| `SHADOW_ENABLED` | `0` | Master switch |
+| `SHADOW_MODEL` | `claude-haiku-4-5-20251001` | Model for the shadow call |
+| `SHADOW_COOLDOWN` | `3` | Turns to skip after a rewind fires |
+| `SHADOW_MIN_MESSAGES` | `6` | Minimum `messages[]` length before firing |
+| `SHADOW_MAX_TOKENS` | `400` | `max_tokens` for the shadow response |
+| `SHADOW_LOG_SUMMARIES` | `1` | Log full shadow summaries in JSONL |
+
+Safety: any shadow error (upstream 5xx, parse failure, timeout) is fail-open — the agent request is forwarded unchanged. The shadow can never block the agent's work.
 
 ### Why this matters
 
