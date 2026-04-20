@@ -29,6 +29,19 @@
 #                          summarize_and_forget on dead-ends (default off).
 #                          Answers "does it help when told to?" vs
 #                          "does it find the tool itself?".
+#   --shadow on|off        enable proxy/shadow.mjs — proxy-side shadow call
+#                          (Haiku-as-judge) + automatic rewind on YES
+#                          (default off). Orthogonal to --rewind:
+#                          --rewind is agent-triggered (MCP tool call),
+#                          --shadow is proxy-side automatic. Incompatible
+#                          with --proxy bare. Running both together works
+#                          but they operate independently.
+#   --shadow-model NAME    model for the shadow call (default:
+#                          claude-haiku-4-5-20251001). Overrides SHADOW_MODEL.
+#   --model NAME           agent model override — sets ANTHROPIC_MODEL in
+#                          the container so Claude Code uses this model
+#                          instead of the manifest's default_model.
+#                          e.g. --model claude-sonnet-4-6
 #   --run-id NAME          label results dir (default auto-increment run_NNN)
 
 set -euo pipefail
@@ -51,6 +64,9 @@ RUN_ID=""
 BOOKMARKS="off"
 REWIND="off"
 REWIND_HINT="off"
+SHADOW="off"
+SHADOW_MODEL=""
+AGENT_MODEL=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -63,9 +79,12 @@ while [[ $# -gt 0 ]]; do
     --bookmarks)    BOOKMARKS="$2"; shift 2 ;;
     --rewind)       REWIND="$2"; shift 2 ;;
     --rewind-hint)  REWIND_HINT="$2"; shift 2 ;;
+    --shadow)       SHADOW="$2"; shift 2 ;;
+    --shadow-model) SHADOW_MODEL="$2"; shift 2 ;;
+    --model)        AGENT_MODEL="$2"; shift 2 ;;
     --run-id)       RUN_ID="$2"; shift 2 ;;
     --manifest)     MANIFEST="$2"; shift 2 ;;
-    -h|--help)      sed -n '2,30p' "$0"; exit 0 ;;
+    -h|--help)      sed -n '2,40p' "$0"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 1 ;;
   esac
 done
@@ -88,8 +107,13 @@ MANIFEST="$(cd "$(dirname "$MANIFEST")" && pwd)/$(basename "$MANIFEST")"
   || { echo "--rewind must be on|off"; exit 1; }
 [[ "$REWIND_HINT" == "on" || "$REWIND_HINT" == "off" ]] \
   || { echo "--rewind-hint must be on|off"; exit 1; }
+[[ "$SHADOW" == "on" || "$SHADOW" == "off" ]] \
+  || { echo "--shadow must be on|off"; exit 1; }
 if [ "$REWIND" = "on" ] && [ "$PROXY" = "bare" ]; then
   echo "--rewind=on is incompatible with --proxy=bare (rewind requires the proxy)"; exit 1
+fi
+if [ "$SHADOW" = "on" ] && [ "$PROXY" = "bare" ]; then
+  echo "--shadow=on is incompatible with --proxy=bare (shadow runs in the proxy)"; exit 1
 fi
 [[ "$AUTH" == "subscription" || "$AUTH" == "env" ]] || { echo "--auth must be subscription|env"; exit 1; }
 [[ "$MODE" == "run" || "$MODE" == "surrogate" ]] || { echo "--mode must be run|surrogate"; exit 1; }
@@ -114,7 +138,7 @@ cp "$MANIFEST" "$RUN_DIR/manifest_snapshot.json"
 LOG="$RUN_DIR/run.log"
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$LOG"; }
 
-log "run_id=$RUN_ID proxy=$PROXY bookmarks=$BOOKMARKS rewind=$REWIND rewind_hint=$REWIND_HINT auth=$AUTH mode=$MODE runs=$RUNS concurrency=$CONCURRENCY"
+log "run_id=$RUN_ID proxy=$PROXY bookmarks=$BOOKMARKS rewind=$REWIND rewind_hint=$REWIND_HINT shadow=$SHADOW${SHADOW_MODEL:+ shadow_model=$SHADOW_MODEL}${AGENT_MODEL:+ agent_model=$AGENT_MODEL} auth=$AUTH mode=$MODE runs=$RUNS concurrency=$CONCURRENCY"
 
 # ── Auth mount ─────────────────────────────────────────────────────────────
 AUTH_MOUNTS=()
@@ -138,11 +162,12 @@ esac
 PROXY_PID=""
 PROXY_LOG_DIR="$RUN_DIR/proxy_logs"
 start_proxy() {
-  # Args: <compact_enabled> <inject_clear_tool_uses> <rewind_enabled>
+  # Args: <compact_enabled> <inject_clear_tool_uses> <rewind_enabled> <shadow_enabled>
   # Whichever primitives are turned on for this run.
   local compact="${1:-0}"
   local inject="${2:-0}"
   local rewind="${3:-0}"
+  local shadow="${4:-0}"
   [ -f "$PROXY_SCRIPT" ] || { log "ERROR: $PROXY_SCRIPT not found"; exit 1; }
   # Kill anything already on :8080
   if command -v lsof >/dev/null && lsof -ti :8080 >/dev/null 2>&1; then
@@ -151,13 +176,15 @@ start_proxy() {
     sleep 1
   fi
   mkdir -p "$PROXY_LOG_DIR"
-  log "starting proxy (COMPACT_ENABLED=$compact INJECT_CLEAR_TOOL_USES=$inject REWIND_ENABLED=$rewind LOG_DIR=$PROXY_LOG_DIR)"
+  log "starting proxy (COMPACT_ENABLED=$compact INJECT_CLEAR_TOOL_USES=$inject REWIND_ENABLED=$rewind SHADOW_ENABLED=$shadow${SHADOW_MODEL:+ SHADOW_MODEL=$SHADOW_MODEL} LOG_DIR=$PROXY_LOG_DIR)"
   # The proxy always emits `cache_stats` parsed from upstream responses
   # and `request_summary` per outgoing request — that is the A/B
   # baseline regardless of which hygiene primitives are active.
   ( cd "$REPO_DIR" && LOG_DIR="$PROXY_LOG_DIR" \
       COMPACT_ENABLED="$compact" INJECT_CLEAR_TOOL_USES="$inject" \
       REWIND_ENABLED="$rewind" \
+      SHADOW_ENABLED="$shadow" \
+      ${SHADOW_MODEL:+SHADOW_MODEL="$SHADOW_MODEL"} \
       node "$PROXY_SCRIPT" >"$RUN_DIR/proxy.log" 2>&1 ) &
   PROXY_PID=$!
   sleep 2
@@ -173,13 +200,15 @@ stop_proxy() {
 }
 trap stop_proxy EXIT
 
+SHADOW_BIT=$([ "$SHADOW" = "on" ] && echo 1 || echo 0)
+REWIND_BIT=$([ "$REWIND" = "on" ] && echo 1 || echo 0)
 case "$PROXY" in
   # on  = proxy observes + injects clear_tool_uses (native API clearing).
   # off = proxy observes only (cache_stats baseline).
   # bare = no proxy at all.
-  # Rewind is orthogonal and is enabled independently via --rewind.
-  on)   start_proxy 0 1 $([ "$REWIND" = "on" ] && echo 1 || echo 0) ;;
-  off)  start_proxy 0 0 $([ "$REWIND" = "on" ] && echo 1 || echo 0) ;;
+  # Rewind and shadow are orthogonal and enabled via --rewind / --shadow.
+  on)   start_proxy 0 1 "$REWIND_BIT" "$SHADOW_BIT" ;;
+  off)  start_proxy 0 0 "$REWIND_BIT" "$SHADOW_BIT" ;;
   bare) ;;
 esac
 
@@ -222,6 +251,12 @@ launch_one() {
   fi
   if [ "$REWIND_HINT" = "on" ]; then
     PROXY_ENV+=(-e "REWIND_HINT=1")
+  fi
+  if [ -n "$AGENT_MODEL" ]; then
+    # ANTHROPIC_MODEL is read by Claude Code to override the default
+    # model. Our entrypoint also reads MODEL_OVERRIDE as a secondary
+    # mechanism so per-task defaults in manifest.json can be ignored.
+    PROXY_ENV+=(-e "ANTHROPIC_MODEL=$AGENT_MODEL" -e "MODEL_OVERRIDE=$AGENT_MODEL")
   fi
 
   log "$TASK_ID${SUFFIX}: launching"

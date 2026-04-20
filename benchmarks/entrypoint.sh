@@ -76,6 +76,13 @@ case "$MODE" in
       '.tasks[] | select(.id==$id) | .model // $d' /manifest.json)
     MAX_TURNS=$(jq -r --arg id "$TASK_ID" --arg d "$DEFAULT_MAX_TURNS" \
       '.tasks[] | select(.id==$id) | .max_turns // $d' /manifest.json)
+    # Allow run.sh --model to override whatever the manifest says.
+    # This lets a single manifest run against multiple agent models
+    # without editing the file each time.
+    if [ -n "${MODEL_OVERRIDE:-}" ]; then
+      echo "run[$TASK_ID]: model override: $MODEL -> $MODEL_OVERRIDE"
+      MODEL="$MODEL_OVERRIDE"
+    fi
 
     # Materialize a writable copy of the fixture
     mkdir -p /scratch
