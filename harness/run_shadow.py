@@ -86,7 +86,13 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix=f"shadow_{args.fixture}_") as td:
         work_dir = Path(td) / args.fixture
-        shutil.copytree(fixture_dir, work_dir)
+        # Skip build/ artifacts during copy — they may contain absolute paths
+        # baked into Makefiles from a prior configure. Fresh configure happens
+        # in VALIDATE.sh or via the agent's own rebuild.
+        shutil.copytree(
+            fixture_dir, work_dir,
+            ignore=shutil.ignore_patterns("build", "__pycache__", ".pytest_cache"),
+        )
 
         metrics = run_shadow_agent(
             model=model, tokenizer=tok, tools_schema=TOOLS_SCHEMA,

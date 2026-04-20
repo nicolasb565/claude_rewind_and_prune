@@ -1,0 +1,16 @@
+{
+  "stop_reason": "no_tool_call",
+  "steps": 19,
+  "n_tool_calls": 18,
+  "n_shadow_yes": 1,
+  "n_rewinds": 0,
+  "act_on_shadow": true,
+  "total_input_tokens": 44749,
+  "wall_time_s": 226.20695853233337,
+  "fixture": "bug_07_pentagon",
+  "model": "Qwen/Qwen3.5-4B",
+  "success": true,
+  "validation_tail": "..........                                                               [100%]\n10 passed in 0.05s\n",
+  "log_path": "harness/results/shadow/bug_07_pentagon_20260420_004951.jsonl",
+  "stamp": "20260420_004951"
+}

@@ -12,8 +12,10 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HF_CACHE="${HF_CACHE:-$HOME/.cache/huggingface}"
 FIXTURE="${FIXTURE:-bug_01_offbyone}"
+FIXTURES_DIR="${FIXTURES_DIR:-harness/fixtures}"
 SMOKE_MODEL="${SMOKE_MODEL:-Qwen/Qwen3.5-4B}"
 MAX_STEPS="${MAX_STEPS:-30}"
+MAX_CONTEXT_TOKENS="${MAX_CONTEXT_TOKENS:-16000}"
 ACT_ON_SHADOW="${ACT_ON_SHADOW:-0}"
 
 VIDEO_GID=$(getent group video | cut -d: -f3)
@@ -22,8 +24,9 @@ RENDER_GID=$(getent group render | cut -d: -f3)
 IMAGE="rocm/pytorch:latest"
 
 PIP_INSTALL='pip install --quiet --no-input "transformers>=5.3,<6" "accelerate>=1.10" "flash-linear-attention"'
-# Install Node.js for JS fixtures (cheap apt install, no-op if already present)
+# Install Node.js + build-essential for JS/C fixtures (cheap apt, no-op if present)
 NODE_INSTALL='command -v node >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq nodejs >/dev/null 2>&1)'
+BUILD_INSTALL='command -v gcc >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq build-essential >/dev/null 2>&1)'
 
 ACT_FLAG=""
 if [ "$ACT_ON_SHADOW" = "1" ] || [ "$ACT_ON_SHADOW" = "true" ]; then
@@ -31,12 +34,14 @@ if [ "$ACT_ON_SHADOW" = "1" ] || [ "$ACT_ON_SHADOW" = "true" ]; then
 fi
 
 echo "=== Qwen 3.5 shadow-log run ==="
-echo "  image:     $IMAGE"
-echo "  model:     $SMOKE_MODEL"
-echo "  fixture:   $FIXTURE"
-echo "  max_steps: $MAX_STEPS"
-echo "  act_rewind:$ACT_ON_SHADOW"
-echo "  repo:      $REPO_DIR"
+echo "  image:      $IMAGE"
+echo "  model:      $SMOKE_MODEL"
+echo "  fixtures:   $FIXTURES_DIR"
+echo "  fixture:    $FIXTURE"
+echo "  max_steps:  $MAX_STEPS"
+echo "  max_ctx:    $MAX_CONTEXT_TOKENS"
+echo "  act_rewind: $ACT_ON_SHADOW"
+echo "  repo:       $REPO_DIR"
 
 docker run --rm \
     --device=/dev/kfd --device=/dev/dri \
@@ -49,5 +54,6 @@ docker run --rm \
     -e HF_HOME=/root/.cache/huggingface \
     -e TRANSFORMERS_VERBOSITY=warning \
     -e PYTHONUNBUFFERED=1 \
+    -e PYTORCH_ALLOC_CONF=expandable_segments:True \
     "$IMAGE" \
-    bash -c "$NODE_INSTALL && $PIP_INSTALL && python -u harness/run_shadow.py --fixture \"$FIXTURE\" --model \"$SMOKE_MODEL\" --max-steps \"$MAX_STEPS\" $ACT_FLAG"
+    bash -c "$NODE_INSTALL && $BUILD_INSTALL && $PIP_INSTALL && python -u harness/run_shadow.py --fixture \"$FIXTURE\" --fixtures-dir \"$FIXTURES_DIR\" --model \"$SMOKE_MODEL\" --max-steps \"$MAX_STEPS\" --max-context-tokens \"$MAX_CONTEXT_TOKENS\" $ACT_FLAG"

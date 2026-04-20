@@ -1,0 +1,16 @@
+{
+  "stop_reason": "no_tool_call",
+  "steps": 12,
+  "n_tool_calls": 11,
+  "n_shadow_yes": 1,
+  "n_rewinds": 0,
+  "act_on_shadow": true,
+  "total_input_tokens": 34091,
+  "wall_time_s": 175.25194215774536,
+  "fixture": "bug_06_node_trio",
+  "model": "Qwen/Qwen3.5-4B",
+  "success": true,
+  "validation_tail": "ple\n  ---\n  duration_ms: 0.526265\n  ...\n# Subtest: isPalindrome ignores case and spaces\nok 4 - isPalindrome ignores case and spaces\n  ---\n  duration_ms: 0.06424\n  ...\n# Subtest: uniq removes duplicates\nok 5 - uniq removes duplicates\n  ---\n  duration_ms: 0.835608\n  ...\n# Subtest: uniq preserves first-occurrence order\nok 6 - uniq preserves first-occurrence order\n  ---\n  duration_ms: 0.0632\n  ...\n1..6\n# tests 6\n# suites 0\n# pass 6\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 58.514155\n",
+  "log_path": "harness/results/shadow/bug_06_node_trio_20260420_010405.jsonl",
+  "stamp": "20260420_010405"
+}

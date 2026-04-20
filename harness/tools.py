@@ -121,8 +121,20 @@ class ToolRunner:
     def _grep(self, args: dict) -> str:
         pattern = args.get("pattern", "").strip()
         path = args.get("path", ".")
+        # Fallback: models sometimes invoke Grep with Bash-style 'command'
+        # arg. Try to extract a grep pattern + path from that.
+        if not pattern and args.get("command"):
+            cmd = args["command"]
+            m = re.search(r"""grep\s+(?:-\S+\s+)*["']([^"']+)["']""", cmd)
+            if m:
+                pattern = m.group(1)
+                path_m = re.search(r"""["'][^"']+["']\s+(\S+?)\s*(?:\||$)""", cmd)
+                if path_m:
+                    path = path_m.group(1)
         if not pattern:
-            return "[harness] Grep: missing pattern"
+            return ("[harness] Grep: missing 'pattern' arg. "
+                    "Usage: Grep(pattern='...', path='dir/'). "
+                    "For shell commands use Bash(command='...') instead.")
         p = self._resolve(path) if path else self.work_dir
         result = subprocess.run(
             ["grep", "-rn", "--", pattern, str(p)],

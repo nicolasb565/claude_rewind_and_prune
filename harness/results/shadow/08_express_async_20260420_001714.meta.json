@@ -1,0 +1,16 @@
+{
+  "stop_reason": "context_overflow (17215 > 16000)",
+  "steps": 16,
+  "n_tool_calls": 15,
+  "n_shadow_yes": 8,
+  "n_rewinds": 3,
+  "act_on_shadow": true,
+  "total_input_tokens": 130199,
+  "wall_time_s": 467.7014491558075,
+  "fixture": "08_express_async",
+  "model": "Qwen/Qwen3.5-4B",
+  "success": false,
+  "validation_tail": "req.query.hasOwnProperty threw: req.query.hasOwnProperty is not a function\n",
+  "log_path": "harness/results/shadow/08_express_async_20260420_001714.jsonl",
+  "stamp": "20260420_001714"
+}
